@@ -1,0 +1,29 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+// ==================================  枚举  ==================================
+/// 后台用户角色
+enum adminRole {
+  SUPER_ADMIN // 超级管理员
+  CONTENT_ADMIN // 内容管理员
+  CUSTOMER_SERVICE // 客服
+}
+
+// ==================================  集合  ==================================
+// 管理员表
+model Admin {
+  id        Int       @id @default(autoincrement())
+  username  String    @unique
+  password  String
+  role      adminRole @default(CUSTOMER_SERVICE)
+  status    Boolean   @default(true)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  @@map("admin")
+}
