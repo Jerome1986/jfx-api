@@ -6,24 +6,1396 @@ datasource db {
   provider = "mysql"
 }
 
-// ==================================  枚举  ==================================
-/// 后台用户角色
-enum adminRole {
-  SUPER_ADMIN // 超级管理员
-  CONTENT_ADMIN // 内容管理员
-  CUSTOMER_SERVICE // 客服
+// ==================== 枚举 ====================
+
+// 用户角色：区分客户端用户与员工端用户
+enum UserRole {
+  CUSTOMER // 客户端用户
+  EMPLOYEE // 员工端用户
 }
 
-// ==================================  集合  ==================================
-// 管理员表
+// 后台管理员角色：控制后台菜单、操作和数据范围
+enum AdminRole {
+  SUPER_ADMIN // 超级管理员
+  CONTENT_OPERATOR // 内容运营
+  CUSTOMER_SERVICE // 客户服务
+}
+
+// 发布状态：用于案例、焕新方案、商品和轮播图
+enum PublishStatus {
+  DRAFT // 草稿
+  PUBLISHED // 已发布
+  OFFLINE // 已下线
+}
+
+// 预约类型：统一表示预算、量房、报价及各类咨询线索
+enum AppointmentType {
+  BUDGET // 装修预算
+  MEASURE // 免费量房
+  QUOTE // 房屋报价
+  PLAN // 焕新方案预约
+  CASE // 同款案例报价
+  OUTLET // 网点咨询
+}
+
+// 装修预约状态
+enum AppointmentStatus {
+  PENDING_CONTACT // 待联系
+  PENDING_VISIT // 待上门
+  COMPLETED // 已完成
+  CANCELED // 已取消
+}
+
+// 装修项目状态
+enum RenovationProjectStatus {
+  PENDING_CONFIRM // 待确认
+  IN_SERVICE // 服务中
+  COMPLETED // 已完成
+  CANCELED // 已取消
+}
+
+// 商品订单业务状态
+enum ProductOrderStatus {
+  PENDING_PAYMENT // 待付款
+  PENDING_INSTALLATION // 待安装
+  IN_SERVICE // 服务中
+  COMPLETED // 已完成
+  CANCELED // 已取消
+  REFUNDING // 退款中
+  REFUNDED // 已退款
+}
+
+// 商品订单支付与退款状态
+enum PaymentStatus {
+  UNPAID // 未支付
+  PAID // 已支付
+  REFUNDING // 退款中
+  REFUNDED // 已退款
+  CLOSED // 已关闭
+}
+
+// 安装服务单状态
+enum InstallationStatus {
+  PENDING_APPOINTMENT // 待预约
+  PENDING_ASSIGNMENT // 待派单
+  PENDING_VISIT // 待上门
+  IN_SERVICE // 服务中
+  COMPLETED // 已完成
+  CANCELED // 已取消
+}
+
+// 库存变动类型
+enum StockChangeType {
+  INBOUND // 入库
+  SALE // 销售出库
+  CANCEL_RELEASE // 取消订单释放库存
+  MANUAL // 人工调整
+}
+
+// 积分变动类型
+enum PointChangeType {
+  INCOME // 积分收入
+  EXPENSE // 积分支出
+  MANUAL // 人工调整
+  EXPIRED // 积分过期
+}
+
+// 优惠券模板状态
+enum CouponStatus {
+  DRAFT // 草稿
+  NOT_STARTED // 未开始
+  ACTIVE // 生效中
+  ENDED // 已结束
+  DISABLED // 已停用
+}
+
+// 用户优惠券状态
+enum UserCouponStatus {
+  AVAILABLE // 可使用
+  USED // 已使用
+  EXPIRED // 已过期
+  INVALID // 已失效
+}
+
+// 意见反馈处理状态
+enum FeedbackStatus {
+  PENDING // 待处理
+  PROCESSING // 处理中
+  REPLIED // 已回复
+  CLOSED // 已关闭
+}
+
+// 消息通知发送渠道
+enum NotificationChannel {
+  SMS // 短信
+  SUBSCRIBE_MESSAGE // 微信订阅消息
+  IN_APP // 站内消息
+}
+
+// 消息发送状态
+enum SendStatus {
+  PENDING // 待发送
+  SUCCESS // 发送成功
+  FAILED // 发送失败
+}
+
+// ==================== 账号与人员 ====================
+
+// 用户表：保存客户和员工共用的登录账号及会员资产汇总
+model User {
+  /// 主键 ID
+  id                Int      @id @default(autoincrement())
+  /// 用户编号
+  userNo            String   @unique @map("user_no")
+  /// 角色
+  role              UserRole @default(CUSTOMER)
+  /// 手机号码
+  mobile            String   @unique
+  /// 密码哈希
+  password          String?
+  /// 微信 OpenID
+  openid            String?  @unique
+  /// 昵称
+  nickname          String?
+  /// 真实姓名
+  realName          String?  @map("real_name")
+  /// 头像地址
+  avatar            String?
+  /// 来源渠道
+  source            String?
+  /// 所在城市
+  city              String?
+  /// 标签列表
+  tags              Json?
+  /// 当前可用积分
+  points            Int      @default(0)
+  /// 累计获得积分
+  totalPointsEarned Int      @default(0) @map("total_points_earned")
+  /// 累计使用积分
+  totalPointsUsed   Int      @default(0) @map("total_points_used")
+  /// 用户账号是否启用
+  status            Boolean  @default(true)
+  /// 创建时间
+  createdAt         DateTime @default(now()) @map("created_at")
+  /// 更新时间
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  /// 关联员工档案
+  employee           Employee?
+  /// 关联服务地址列表
+  addresses          Address[]
+  /// 关联购物车明细
+  cartItems          CartItem[]
+  /// 关联案例收藏列表
+  favorites          Favorite[]
+  /// 关联预约列表
+  appointments       Appointment[]
+  /// 关联装修项目列表
+  renovationProjects RenovationProject[]
+  /// 关联商品订单列表
+  productOrders      ProductOrder[]
+  /// 关联积分流水列表
+  pointRecords       PointRecord[]
+  /// 关联用户优惠券列表
+  userCoupons        UserCoupon[]
+  /// 关联意见反馈列表
+  feedbacks          Feedback[]
+  /// 关联消息通知列表
+  notifications      Notification[]
+
+  @@index([role, status])
+  @@index([createdAt])
+  @@map("user")
+}
+
+// 员工表：保存员工身份、岗位、部门及服务范围
+model Employee {
+  /// 主键 ID
+  id             Int       @id @default(autoincrement())
+  /// 关联用户 ID
+  userId         Int       @unique @map("user_id")
+  /// 员工编号
+  employeeNo     String    @unique @map("employee_no")
+  /// 岗位
+  position       String?
+  /// 所属部门
+  department     String?
+  /// 服务区域列表
+  serviceRegions Json?     @map("service_regions")
+  /// 数据权限范围
+  dataScope      String    @default("SELF") @map("data_scope")
+  /// 入职时间
+  hiredAt        DateTime? @map("hired_at")
+  /// 是否在职或可用
+  status         Boolean   @default(true)
+  /// 创建时间
+  createdAt      DateTime  @default(now()) @map("created_at")
+  /// 更新时间
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  /// 关联员工登录账号
+  user               User                @relation(fields: [userId], references: [id])
+  /// 关联预约列表
+  appointments       Appointment[]
+  /// 关联装修项目列表
+  renovationProjects RenovationProject[]
+  /// 关联安装服务单列表
+  installationOrders InstallationOrder[]
+  /// 关联跟进记录列表
+  followUps          FollowUp[]
+
+  @@index([department, status])
+  @@map("employee")
+}
+
+// 后台管理员表：保存管理后台账号、角色及权限
 model Admin {
-  id        Int       @id @default(autoincrement())
-  username  String    @unique
-  password  String
-  role      adminRole @default(CUSTOMER_SERVICE)
-  status    Boolean   @default(true)
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
+  /// 主键 ID
+  id          Int       @id @default(autoincrement())
+  /// 管理员登录名
+  username    String    @unique
+  /// 密码哈希
+  password    String
+  /// 名称
+  name        String?
+  /// 手机号码
+  mobile      String?
+  /// 角色
+  role        AdminRole @default(CUSTOMER_SERVICE)
+  /// 权限配置
+  permissions Json?
+  /// 数据权限范围
+  dataScope   Json?     @map("data_scope")
+  /// 管理员账号是否启用
+  status      Boolean   @default(true)
+  /// 最后登录时间
+  lastLoginAt DateTime? @map("last_login_at")
+  /// 创建时间
+  createdAt   DateTime  @default(now()) @map("created_at")
+  /// 更新时间
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  /// 关联意见反馈列表
+  feedbacks     Feedback[]
+  /// 关联操作日志列表
+  operationLogs OperationLog[]
 
   @@map("admin")
+}
+
+// 服务地址表：保存客户的收货及上门服务地址
+model Address {
+  /// 主键 ID
+  id           Int      @id @default(autoincrement())
+  /// 关联用户 ID
+  userId       Int      @map("user_id")
+  /// 联系人姓名
+  contactName  String   @map("contact_name")
+  /// 联系电话
+  phone        String
+  /// 地图位置名称
+  locationName String?  @map("location_name")
+  /// 省份
+  province     String?
+  /// 所在城市
+  city         String?
+  /// 区县
+  district     String?
+  /// 详细地址
+  address      String
+  /// 门牌号
+  doorplate    String?
+  /// 纬度
+  latitude     Decimal? @db.Decimal(10, 7)
+  /// 经度
+  longitude    Decimal? @db.Decimal(10, 7)
+  /// 是否为默认地址
+  isDefault    Boolean  @default(false) @map("is_default")
+  /// 是否启用
+  isEnabled    Boolean  @default(true) @map("is_enabled")
+  /// 创建时间
+  createdAt    DateTime @default(now()) @map("created_at")
+  /// 更新时间
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  /// 关联地址所属用户
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, isDefault])
+  @@map("address")
+}
+
+// ==================== 内容 ====================
+
+// 案例分类表：维护装修案例的分类、排序和启停状态
+model CaseCategory {
+  /// 主键 ID
+  id        Int      @id @default(autoincrement())
+  /// 分类名称
+  name      String
+  /// 分类编码
+  code      String   @unique
+  /// 显示排序
+  sort      Int      @default(0)
+  /// 是否启用
+  isEnabled Boolean  @default(true) @map("is_enabled")
+  /// 创建时间
+  createdAt DateTime @default(now()) @map("created_at")
+  /// 更新时间
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  /// 关联装修案例列表
+  cases RenovationCase[]
+
+  @@index([isEnabled, sort])
+  @@map("case_category")
+}
+
+// 焕新空间分类表：维护厨房、卫生间、阳台等适用空间
+model RenewalCategory {
+  /// 主键 ID
+  id        Int      @id @default(autoincrement())
+  /// 分类名称
+  name      String
+  /// 分类编码
+  code      String   @unique
+  /// 分类图标
+  icon      String?
+  /// 分类封面
+  cover     String?
+  /// 显示排序
+  sort      Int      @default(0)
+  /// 是否启用
+  isEnabled Boolean  @default(true) @map("is_enabled")
+  /// 创建时间
+  createdAt DateTime @default(now()) @map("created_at")
+  /// 更新时间
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  /// 关联焕新方案列表
+  plans RenewalPlan[]
+
+  @@index([isEnabled, sort])
+  @@map("renewal_category")
+}
+
+// 装修案例表：保存改造案例内容、费用及推荐信息
+model RenovationCase {
+  /// 主键 ID
+  id            Int           @id @default(autoincrement())
+  /// 案例分类 ID
+  categoryId    Int           @map("category_id")
+  /// 标题
+  title         String
+  /// 标签列表
+  tags          Json?
+  /// 所在城市
+  city          String?
+  /// 户型
+  roomType      String?       @map("room_type")
+  /// 面积（平方米）
+  area          Decimal?      @db.Decimal(8, 2)
+  /// 装修风格
+  style         String?
+  /// 改造前图片列表
+  beforeImage  String         @map("before_images")
+  /// 改造后图片列表
+  afterImage   String         @map("after_images")
+  /// 描述
+  description   String?       @db.Text
+  /// 改造亮点列表
+  highlights    Json?
+  /// 费用组成列表
+  costs         Json?
+  /// 总价
+  totalPrice    Decimal?      @map("total_price") @db.Decimal(10, 2)
+  /// 工期天数
+  durationDays  Int?          @map("duration_days")
+  /// 浏览次数
+  viewCount     Int           @default(0) @map("view_count")
+  /// 报价咨询次数
+  quoteCount    Int           @default(0) @map("quote_count")
+  /// 分享标题
+  shareTitle    String?       @map("share_title")
+  /// 分享图片
+  shareImage    String?       @map("share_image")
+  /// 是否推荐
+  isRecommended Boolean       @default(false) @map("is_recommended")
+  /// 推荐排序
+  recommendSort Int           @default(0) @map("recommend_sort")
+  /// 发布状态
+  status        PublishStatus @default(DRAFT)
+  /// 创建时间
+  createdAt     DateTime      @default(now()) @map("created_at")
+  /// 更新时间
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  /// 关联案例分类
+  category     CaseCategory  @relation(fields: [categoryId], references: [id])
+  /// 关联案例收藏列表
+  favorites    Favorite[]
+  /// 关联预约列表
+  appointments Appointment[]
+
+  @@index([status, isRecommended, recommendSort])
+  @@index([categoryId, city])
+  @@map("renovation_case")
+}
+
+// 焕新方案表：保存空间焕新方案的基础内容和价格
+model RenewalPlan {
+  /// 主键 ID
+  id            Int           @id @default(autoincrement())
+  /// 焕新空间分类 ID
+  categoryId    Int           @map("category_id")
+  /// 焕新方案名称
+  name          String
+  /// 简介
+  summary       String?
+  /// 标签列表
+  tags          Json?
+  /// 起步价
+  startingPrice Decimal       @map("starting_price") @db.Decimal(10, 2)
+  /// 封面图片
+  cover         String?
+  /// 图片列表
+  images        Json?
+  /// 详情内容
+  detail        String?       @db.Text
+  /// 分享标题
+  shareTitle    String?       @map("share_title")
+  /// 分享图片
+  shareImage    String?       @map("share_image")
+  /// 排序值
+  sort          Int           @default(0)
+  /// 是否推荐
+  isRecommended Boolean       @default(false) @map("is_recommended")
+  /// 推荐排序
+  recommendSort Int           @default(0) @map("recommend_sort")
+  /// 发布状态
+  status        PublishStatus @default(DRAFT)
+  /// 创建时间
+  createdAt     DateTime      @default(now()) @map("created_at")
+  /// 更新时间
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  /// 关联焕新空间分类
+  category     RenewalCategory     @relation(fields: [categoryId], references: [id])
+  /// 关联服务项目列表
+  items        RenewalPlanItem[]
+  /// 关联预约列表
+  appointments Appointment[]
+  /// 关联装修项目列表
+  projects     RenovationProject[]
+
+  @@index([status, isRecommended, recommendSort])
+  @@index([categoryId, status, sort])
+  @@map("renewal_plan")
+}
+
+// 焕新方案服务项目表：保存方案中的主材、人工和辅材明细
+model RenewalPlanItem {
+  /// 主键 ID
+  id          Int     @id @default(autoincrement())
+  /// 关联焕新方案 ID
+  planId      Int     @map("plan_id")
+  /// 关联商品 ID
+  productId   Int?    @map("product_id")
+  /// 服务项目分类
+  category    String
+  /// 服务项目名称
+  name        String
+  /// 描述
+  description String?
+  /// 计价单位
+  unit        String
+  /// 单价
+  unitPrice   Decimal @map("unit_price") @db.Decimal(10, 2)
+  /// 数量
+  quantity    Decimal @default(1) @db.Decimal(10, 2)
+  /// 图片地址
+  image       String?
+  /// 排序值
+  sort        Int     @default(0)
+
+  /// 关联焕新方案
+  plan    RenewalPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  /// 关联商品
+  product Product?    @relation(fields: [productId], references: [id])
+
+  @@index([planId, sort])
+  @@map("renewal_plan_item")
+}
+
+// 轮播图表：保存首页轮播内容、跳转目标及有效期
+model Banner {
+  /// 主键 ID
+  id         Int           @id @default(autoincrement())
+  /// 标题
+  title      String
+  /// 图片地址
+  image      String
+  /// 跳转目标类型
+  targetType String?       @map("target_type")
+  /// 跳转目标
+  target     String?
+  /// 排序值
+  sort       Int           @default(0)
+  /// 生效时间
+  startAt    DateTime?     @map("start_at")
+  /// 失效时间
+  endAt      DateTime?     @map("end_at")
+  /// 发布状态
+  status     PublishStatus @default(DRAFT)
+  /// 创建时间
+  createdAt  DateTime      @default(now()) @map("created_at")
+  /// 更新时间
+  updatedAt  DateTime      @updatedAt @map("updated_at")
+
+  @@index([status, sort])
+  @@map("banner")
+}
+
+// 案例收藏表：记录用户收藏的装修案例
+model Favorite {
+  /// 主键 ID
+  id        Int      @id @default(autoincrement())
+  /// 关联用户 ID
+  userId    Int      @map("user_id")
+  /// 关联装修案例 ID
+  caseId    Int      @map("case_id")
+  /// 创建时间
+  createdAt DateTime @default(now()) @map("created_at")
+
+  /// 关联用户
+  user User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// 关联装修案例
+  case RenovationCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, caseId])
+  @@map("favorite")
+}
+
+// ==================== 商品 ====================
+
+// 商品分类表：保存一级、二级商品分类树
+model ProductCategory {
+  /// 主键 ID
+  id        Int      @id @default(autoincrement())
+  /// 父分类 ID
+  parentId  Int?     @map("parent_id")
+  /// 分类名称
+  name      String
+  /// 图标地址
+  icon      String?
+  /// 封面图片
+  cover     String?
+  /// 排序值
+  sort      Int      @default(0)
+  /// 是否启用
+  isEnabled Boolean  @default(true) @map("is_enabled")
+  /// 创建时间
+  createdAt DateTime @default(now()) @map("created_at")
+  /// 更新时间
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  /// 关联父分类
+  parent   ProductCategory?  @relation("CategoryTree", fields: [parentId], references: [id])
+  /// 关联子分类列表
+  children ProductCategory[] @relation("CategoryTree")
+  /// 关联商品列表
+  products Product[]
+
+  @@index([parentId, sort])
+  @@map("product_category")
+}
+
+// 商品表：保存商品信息、简单规格、价格及当前库存
+model Product {
+  /// 主键 ID
+  id              Int           @id @default(autoincrement())
+  /// 关联商品分类 ID
+  categoryId      Int           @map("category_id")
+  /// 商品编号
+  productNo       String        @unique @map("product_no")
+  /// 商品名称
+  name            String
+  /// 副标题或卖点
+  subtitle        String?
+  /// 品牌
+  brand           String?
+  /// 销售价
+  salePrice       Decimal       @map("sale_price") @db.Decimal(10, 2)
+  /// 划线价
+  originalPrice   Decimal?      @map("original_price") @db.Decimal(10, 2)
+  /// 成本价
+  costPrice       Decimal?      @map("cost_price") @db.Decimal(10, 2)
+  /// 简单规格名称
+  skuName         String?       @map("sku_name")
+  /// 简单规格值
+  skuValue        String?       @map("sku_value")
+  /// 当前库存
+  stock           Int           @default(0)
+  /// 库存预警值
+  warningStock    Int           @default(0) @map("warning_stock")
+  /// 累计销量
+  salesCount      Int           @default(0) @map("sales_count")
+  /// 单次限购数量
+  purchaseLimit   Int?          @map("purchase_limit")
+  /// 商品主图
+  mainImage       String        @map("main_image")
+  /// 图片列表
+  images          Json?
+  /// 详情内容
+  detail          String?       @db.Text
+  /// 规格参数
+  parameters      Json?
+  /// 服务说明
+  serviceInfo     String?       @map("service_info") @db.Text
+  /// 是否需要安装
+  requiresInstall Boolean       @default(false) @map("requires_install")
+  /// 安装费用
+  installationFee Decimal       @default(0) @map("installation_fee") @db.Decimal(10, 2)
+  /// 服务区域列表
+  serviceRegions  Json?         @map("service_regions")
+  /// 发布状态
+  status          PublishStatus @default(DRAFT)
+  /// 创建时间
+  createdAt       DateTime      @default(now()) @map("created_at")
+  /// 更新时间
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  /// 分类
+  category   ProductCategory    @relation(fields: [categoryId], references: [id])
+  /// 关联购物车明细
+  cartItems  CartItem[]
+  /// 关联订单明细列表
+  orderItems ProductOrderItem[]
+  /// 关联库存流水列表
+  stockLogs  StockLog[]
+  /// 关联焕新方案服务项目列表
+  planItems  RenewalPlanItem[]
+  /// 关联项目报价明细列表
+  quoteItems ProjectQuoteItem[]
+
+  @@index([categoryId, status])
+  @@index([status, stock])
+  @@map("product")
+}
+
+// 购物车明细表：保存用户加入购物车的商品和数量
+model CartItem {
+  /// 主键 ID
+  id        Int      @id @default(autoincrement())
+  /// 关联用户 ID
+  userId    Int      @map("user_id")
+  /// 关联商品 ID
+  productId Int      @map("product_id")
+  /// 数量
+  quantity  Int      @default(1)
+  /// 是否选中
+  selected  Boolean  @default(true)
+  /// 创建时间
+  createdAt DateTime @default(now()) @map("created_at")
+  /// 更新时间
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  /// 关联用户
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// 关联商品
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@map("cart_item")
+}
+
+// 库存流水表：记录入库、销售、取消释放及人工调整
+model StockLog {
+  /// 主键 ID
+  id        Int             @id @default(autoincrement())
+  /// 关联商品 ID
+  productId Int             @map("product_id")
+  /// 库存变动类型
+  type      StockChangeType
+  /// 变动数量
+  change    Int
+  /// 变动后的库存数量
+  stock     Int
+  /// 变动原因
+  reason    String?
+  /// 关联业务编号
+  relatedNo String?         @map("related_no")
+  /// 操作人
+  operator  String?
+  /// 创建时间
+  createdAt DateTime        @default(now()) @map("created_at")
+
+  /// 关联商品
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([productId, createdAt])
+  @@map("stock_log")
+}
+
+// ==================== 装修业务 ====================
+
+// 装修预约表：统一保存预算、量房、报价和咨询预约
+model Appointment {
+  /// 主键 ID
+  id            Int               @id @default(autoincrement())
+  /// 预约编号
+  appointmentNo String            @unique @map("appointment_no")
+  /// 关联用户 ID
+  userId        Int?              @map("user_id")
+  /// 负责员工 ID
+  employeeId    Int?              @map("employee_id")
+  /// 关联装修案例 ID
+  caseId        Int?              @map("case_id")
+  /// 关联焕新方案 ID
+  planId        Int?              @map("plan_id")
+  /// 预约类型
+  type          AppointmentType
+  /// 来源渠道
+  source        String?
+  /// 客户姓名
+  customerName  String            @map("customer_name")
+  /// 手机号码
+  mobile        String
+  /// 房屋类型
+  houseType     String?           @map("house_type")
+  /// 所在城市
+  city          String?
+  /// 面积（平方米）
+  area          Decimal?          @db.Decimal(8, 2)
+  /// 户型布局
+  roomLayout    String?           @map("room_layout")
+  /// 装修需求
+  demand        String?           @db.Text
+  /// 关注重点
+  focus         String?
+  /// 上门日期
+  visitDate     DateTime?         @map("visit_date")
+  /// 预约时段
+  timeSlot      String?           @map("time_slot")
+  /// 上门地址
+  visitAddress  String?           @map("visit_address")
+  /// 预约状态
+  status        AppointmentStatus @default(PENDING_CONTACT)
+  /// 完成时间
+  completedAt   DateTime?         @map("completed_at")
+  /// 取消时间
+  canceledAt    DateTime?         @map("canceled_at")
+  /// 创建时间
+  createdAt     DateTime          @default(now()) @map("created_at")
+  /// 更新时间
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+
+  /// 关联用户
+  user      User?              @relation(fields: [userId], references: [id])
+  /// 关联员工档案
+  employee  Employee?          @relation(fields: [employeeId], references: [id])
+  /// 关联装修案例
+  case      RenovationCase?    @relation(fields: [caseId], references: [id])
+  /// 关联焕新方案
+  plan      RenewalPlan?       @relation(fields: [planId], references: [id])
+  /// 关联跟进记录列表
+  followUps FollowUp[]
+  /// 关联装修项目
+  project   RenovationProject?
+
+  @@index([status, employeeId])
+  @@index([mobile])
+  @@index([createdAt])
+  @@map("appointment")
+}
+
+// 跟进记录表：保存预约或装修项目的沟通跟进内容
+model FollowUp {
+  /// 主键 ID
+  id            Int       @id @default(autoincrement())
+  /// 关联预约 ID
+  appointmentId Int?      @map("appointment_id")
+  /// 关联装修项目 ID
+  projectId     Int?      @map("project_id")
+  /// 负责员工 ID
+  employeeId    Int?      @map("employee_id")
+  /// 内容
+  content       String    @db.Text
+  /// 下次跟进时间
+  nextFollowAt  DateTime? @map("next_follow_at")
+  /// 创建时间
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  /// 关联来源预约
+  appointment Appointment?       @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  /// 关联装修项目
+  project     RenovationProject? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  /// 关联跟进员工
+  employee    Employee?          @relation(fields: [employeeId], references: [id])
+
+  @@index([appointmentId, createdAt])
+  @@index([projectId, createdAt])
+  @@map("follow_up")
+}
+
+// 装修项目表：保存由预约转化的装修项目及成交信息
+model RenovationProject {
+  /// 主键 ID
+  id             Int                     @id @default(autoincrement())
+  /// 装修项目编号
+  projectNo      String                  @unique @map("project_no")
+  /// 关联预约 ID
+  appointmentId  Int?                    @unique @map("appointment_id")
+  /// 关联用户 ID
+  userId         Int                     @map("user_id")
+  /// 负责员工 ID
+  employeeId     Int?                    @map("employee_id")
+  /// 关联焕新方案 ID
+  planId         Int?                    @map("plan_id")
+  /// 装修项目名称
+  name           String
+  /// 客户姓名
+  customerName   String                  @map("customer_name")
+  /// 手机号码
+  mobile         String
+  /// 服务地址快照
+  serviceAddress String                  @map("service_address")
+  /// 当前报价金额
+  quotedAmount   Decimal                 @default(0) @map("quoted_amount") @db.Decimal(10, 2)
+  /// 合同成交金额
+  contractAmount Decimal?                @map("contract_amount") @db.Decimal(10, 2)
+  /// 装修项目状态
+  status         RenovationProjectStatus @default(PENDING_CONFIRM)
+  /// 完成时间
+  completedAt    DateTime?               @map("completed_at")
+  /// 创建时间
+  createdAt      DateTime                @default(now()) @map("created_at")
+  /// 更新时间
+  updatedAt      DateTime                @updatedAt @map("updated_at")
+
+  /// 关联来源预约
+  appointment Appointment?       @relation(fields: [appointmentId], references: [id])
+  /// 关联用户
+  user        User               @relation(fields: [userId], references: [id])
+  /// 关联员工档案
+  employee    Employee?          @relation(fields: [employeeId], references: [id])
+  /// 关联焕新方案
+  plan        RenewalPlan?       @relation(fields: [planId], references: [id])
+  /// 关联项目报价明细列表
+  quoteItems  ProjectQuoteItem[]
+  /// 关联项目进度列表
+  progresses  ProjectProgress[]
+  /// 关联跟进记录列表
+  followUps   FollowUp[]
+
+  @@index([status, employeeId])
+  @@index([userId, createdAt])
+  @@map("renovation_project")
+}
+
+// 项目报价明细表：保存装修项目的主材、人工和辅材报价
+model ProjectQuoteItem {
+  /// 主键 ID
+  id          Int      @id @default(autoincrement())
+  /// 关联装修项目 ID
+  projectId   Int      @map("project_id")
+  /// 关联商品 ID
+  productId   Int?     @map("product_id")
+  /// 报价项目分类
+  category    String
+  /// 报价项目名称
+  name        String
+  /// 描述
+  description String?
+  /// 计价单位
+  unit        String
+  /// 单价
+  unitPrice   Decimal  @map("unit_price") @db.Decimal(10, 2)
+  /// 数量
+  quantity    Decimal  @default(1) @db.Decimal(10, 2)
+  /// 图片地址
+  image       String?
+  /// 排序值
+  sort        Int      @default(0)
+  /// 创建时间
+  createdAt   DateTime @default(now()) @map("created_at")
+  /// 更新时间
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  /// 关联装修项目
+  project RenovationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  /// 关联商品
+  product Product?          @relation(fields: [productId], references: [id])
+
+  @@index([projectId, sort])
+  @@map("project_quote_item")
+}
+
+// 项目进度表：记录装修项目各阶段的进度说明和图片
+model ProjectProgress {
+  /// 主键 ID
+  id        Int                     @id @default(autoincrement())
+  /// 关联装修项目 ID
+  projectId Int                     @map("project_id")
+  /// 本次进度状态
+  status    RenovationProjectStatus
+  /// 内容
+  content   String?
+  /// 图片列表
+  images    Json?
+  /// 创建人
+  createdBy String?                 @map("created_by")
+  /// 创建时间
+  createdAt DateTime                @default(now()) @map("created_at")
+
+  /// 关联装修项目
+  project RenovationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, createdAt])
+  @@map("project_progress")
+}
+
+// ==================== 商品交易 ====================
+
+// 商品订单表：保存订单金额、支付、退款及履约状态
+model ProductOrder {
+  /// 主键 ID
+  id              Int                @id @default(autoincrement())
+  /// 商品订单编号
+  orderNo         String             @unique @map("order_no")
+  /// 关联用户 ID
+  userId          Int                @map("user_id")
+  /// 来源渠道
+  source          String?
+  /// 联系人姓名
+  contactName     String             @map("contact_name")
+  /// 联系电话快照
+  contactPhone    String             @map("contact_phone")
+  /// 服务地址快照
+  serviceAddress  String             @map("service_address")
+  /// 用户备注
+  remark          String?
+  /// 商品总金额
+  productAmount   Decimal            @map("product_amount") @db.Decimal(10, 2)
+  /// 优惠券抵扣金额
+  couponDiscount  Decimal            @default(0) @map("coupon_discount") @db.Decimal(10, 2)
+  /// 积分抵扣金额
+  pointDiscount   Decimal            @default(0) @map("point_discount") @db.Decimal(10, 2)
+  /// 使用积分数量
+  pointsUsed      Int                @default(0) @map("points_used")
+  /// 安装费用
+  installationFee Decimal            @default(0) @map("installation_fee") @db.Decimal(10, 2)
+  /// 应付金额
+  payableAmount   Decimal            @map("payable_amount") @db.Decimal(10, 2)
+  /// 实付金额
+  paidAmount      Decimal            @default(0) @map("paid_amount") @db.Decimal(10, 2)
+  /// 退款金额
+  refundAmount    Decimal            @default(0) @map("refund_amount") @db.Decimal(10, 2)
+  /// 商品订单状态
+  status          ProductOrderStatus @default(PENDING_PAYMENT)
+  /// 支付状态
+  paymentStatus   PaymentStatus      @default(UNPAID) @map("payment_status")
+  /// 支付方式
+  paymentMethod   String?            @map("payment_method")
+  /// 支付流水号
+  paymentNo       String?            @map("payment_no")
+  /// 支付时间
+  paidAt          DateTime?          @map("paid_at")
+  /// 取消时间
+  canceledAt      DateTime?          @map("canceled_at")
+  /// 完成时间
+  completedAt     DateTime?          @map("completed_at")
+  /// 创建时间
+  createdAt       DateTime           @default(now()) @map("created_at")
+  /// 更新时间
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+
+  /// 关联用户
+  user         User               @relation(fields: [userId], references: [id])
+  /// 关联订单明细列表
+  items        ProductOrderItem[]
+  /// 关联安装服务单
+  installation InstallationOrder?
+  /// 本订单使用的用户优惠券
+  userCoupon   UserCoupon?
+
+  @@index([userId, status])
+  @@index([status, createdAt])
+  @@index([paymentNo])
+  @@map("product_order")
+}
+
+// 商品订单明细表：保存下单时的商品、规格和价格快照
+model ProductOrderItem {
+  /// 主键 ID
+  id              Int     @id @default(autoincrement())
+  /// 关联商品订单 ID
+  orderId         Int     @map("order_id")
+  /// 关联商品 ID
+  productId       Int?    @map("product_id")
+  /// 商品编号快照
+  productNo       String  @map("product_no")
+  /// 商品名称快照
+  productName     String  @map("product_name")
+  /// 规格描述快照
+  skuDescription  String? @map("sku_description")
+  /// 商品图片快照
+  image           String?
+  /// 成交单价
+  unitPrice       Decimal @map("unit_price") @db.Decimal(10, 2)
+  /// 数量
+  quantity        Int
+  /// 明细小计
+  subtotal        Decimal @db.Decimal(10, 2)
+  /// 该商品是否需要安装
+  requiresInstall Boolean @default(false) @map("requires_install")
+  /// 明细安装费用
+  installationFee Decimal @default(0) @map("installation_fee") @db.Decimal(10, 2)
+
+  /// 关联商品订单
+  order   ProductOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  /// 关联商品
+  product Product?     @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("product_order_item")
+}
+
+// 安装服务单表：保存商品订单的安装预约及服务过程
+model InstallationOrder {
+  /// 主键 ID
+  id                Int                @id @default(autoincrement())
+  /// 安装服务单编号
+  serviceNo         String             @unique @map("service_no")
+  /// 关联商品订单 ID
+  orderId           Int                @unique @map("order_id")
+  /// 负责员工 ID
+  employeeId        Int?               @map("employee_id")
+  /// 客户姓名
+  customerName      String             @map("customer_name")
+  /// 手机号码
+  mobile            String
+  /// 服务地址快照
+  serviceAddress    String             @map("service_address")
+  /// 预约安装日期
+  appointmentDate   DateTime?          @map("appointment_date")
+  /// 预约时段
+  timeSlot          String?            @map("time_slot")
+  /// 派单时间
+  assignedAt        DateTime?          @map("assigned_at")
+  /// 接单时间
+  acceptedAt        DateTime?          @map("accepted_at")
+  /// 上门时间
+  visitedAt         DateTime?          @map("visited_at")
+  /// 安装服务记录
+  serviceRecord     String?            @map("service_record") @db.Text
+  /// 完工图片列表
+  completionImages  Json?              @map("completion_images")
+  /// 客户是否确认完成
+  customerConfirmed Boolean            @default(false) @map("customer_confirmed")
+  /// 安装服务状态
+  status            InstallationStatus @default(PENDING_APPOINTMENT)
+  /// 完成时间
+  completedAt       DateTime?          @map("completed_at")
+  /// 创建时间
+  createdAt         DateTime           @default(now()) @map("created_at")
+  /// 更新时间
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+
+  /// 关联商品订单
+  order    ProductOrder @relation(fields: [orderId], references: [id])
+  /// 关联员工档案
+  employee Employee?    @relation(fields: [employeeId], references: [id])
+
+  @@index([status, employeeId])
+  @@index([appointmentDate])
+  @@map("installation_order")
+}
+
+// ==================== 会员营销 ====================
+
+// 积分流水表：记录用户每次积分收入、使用和调整
+model PointRecord {
+  /// 主键 ID
+  id           Int             @id @default(autoincrement())
+  /// 关联用户 ID
+  userId       Int             @map("user_id")
+  /// 积分变动类型
+  type         PointChangeType
+  /// 关联业务类型
+  businessType String?         @map("business_type")
+  /// 关联业务编号
+  relatedNo    String?         @map("related_no")
+  /// 变动数量
+  change       Int
+  /// 变动后积分余额
+  balance      Int
+  /// 描述
+  description  String?
+  /// 操作人
+  operator     String?
+  /// 过期时间
+  expiresAt    DateTime?       @map("expires_at")
+  /// 创建时间
+  createdAt    DateTime        @default(now()) @map("created_at")
+
+  /// 关联积分所属用户
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([expiresAt])
+  @@map("point_record")
+}
+
+// 优惠券模板表：定义券面额、门槛、范围和发行数量
+model Coupon {
+  /// 主键 ID
+  id             Int          @id @default(autoincrement())
+  /// 优惠券名称
+  name           String
+  /// 优惠券面额
+  amount         Decimal      @db.Decimal(10, 2)
+  /// 使用门槛
+  threshold      Decimal      @default(0) @db.Decimal(10, 2)
+  /// 适用范围类型
+  scopeType      String       @default("ALL") @map("scope_type")
+  /// 适用业务、分类或商品 ID 列表
+  scopeIds       Json?        @map("scope_ids")
+  /// 有效期开始时间
+  validFrom      DateTime     @map("valid_from")
+  /// 有效期结束时间
+  validTo        DateTime     @map("valid_to")
+  /// 发行总量
+  totalQuantity  Int          @map("total_quantity")
+  /// 已发行数量
+  issuedQuantity Int          @default(0) @map("issued_quantity")
+  /// 每人限领数量
+  perUserLimit   Int          @default(1) @map("per_user_limit")
+  /// 优惠券模板状态
+  status         CouponStatus @default(DRAFT)
+  /// 创建时间
+  createdAt      DateTime     @default(now()) @map("created_at")
+  /// 更新时间
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  /// 关联用户优惠券列表
+  userCoupons UserCoupon[]
+
+  @@index([status, validFrom, validTo])
+  @@map("coupon")
+}
+
+// 用户优惠券表：记录优惠券的领取、使用和过期状态
+model UserCoupon {
+  /// 主键 ID
+  id         Int              @id @default(autoincrement())
+  /// 关联用户 ID
+  userId     Int              @map("user_id")
+  /// 关联优惠券模板 ID
+  couponId   Int              @map("coupon_id")
+  /// 关联商品订单 ID
+  orderId    Int?             @unique @map("order_id")
+  /// 用户优惠券状态
+  status     UserCouponStatus @default(AVAILABLE)
+  /// 领取时间
+  receivedAt DateTime         @default(now()) @map("received_at")
+  /// 使用时间
+  usedAt     DateTime?        @map("used_at")
+  /// 过期时间
+  expiresAt  DateTime         @map("expires_at")
+
+  /// 关联用户
+  user   User          @relation(fields: [userId], references: [id])
+  /// 关联优惠券模板
+  coupon Coupon        @relation(fields: [couponId], references: [id])
+  /// 关联商品订单
+  order  ProductOrder? @relation(fields: [orderId], references: [id])
+
+  @@index([userId, status, expiresAt])
+  @@index([couponId])
+  @@map("user_coupon")
+}
+
+// ==================== 服务支持与系统 ====================
+
+// 服务网点表：保存线下服务网点、位置和营业信息
+model ServiceOutlet {
+  /// 主键 ID
+  id            Int      @id @default(autoincrement())
+  /// 网点名称
+  name          String
+  /// 类别列表
+  categories    Json?
+  /// 营业时间
+  businessHours String   @map("business_hours")
+  /// 联系电话
+  phone         String?
+  /// 省份
+  province      String?
+  /// 所在城市
+  city          String
+  /// 区县
+  district      String?
+  /// 详细地址
+  address       String
+  /// 纬度
+  latitude      Decimal  @db.Decimal(10, 7)
+  /// 经度
+  longitude     Decimal  @db.Decimal(10, 7)
+  /// 封面图片
+  cover         String?
+  /// 排序值
+  sort          Int      @default(0)
+  /// 网点是否启用
+  status        Boolean  @default(true)
+  /// 创建时间
+  createdAt     DateTime @default(now()) @map("created_at")
+  /// 更新时间
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([city, status, sort])
+  @@map("service_outlet")
+}
+
+// 意见反馈表：保存客户反馈内容及后台处理结果
+model Feedback {
+  /// 主键 ID
+  id          Int            @id @default(autoincrement())
+  /// 反馈编号
+  feedbackNo  String         @unique @map("feedback_no")
+  /// 关联用户 ID
+  userId      Int?           @map("user_id")
+  /// 处理管理员 ID
+  adminId     Int?           @map("admin_id")
+  /// 反馈类型
+  type        String
+  /// 内容
+  content     String         @db.Text
+  /// 附件列表
+  attachments Json?
+  /// 备用联系方式
+  contact     String?
+  /// 反馈处理状态
+  status      FeedbackStatus @default(PENDING)
+  /// 后台回复内容
+  reply       String?        @db.Text
+  /// 完成时间
+  completedAt DateTime?      @map("completed_at")
+  /// 创建时间
+  createdAt   DateTime       @default(now()) @map("created_at")
+  /// 更新时间
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  /// 关联用户
+  user  User?  @relation(fields: [userId], references: [id])
+  /// 关联处理管理员
+  admin Admin? @relation(fields: [adminId], references: [id])
+
+  @@index([status, createdAt])
+  @@index([userId])
+  @@map("feedback")
+}
+
+// 系统字典表：保存城市、户型、标签和服务时段等选项
+model Dictionary {
+  /// 主键 ID
+  id        Int      @id @default(autoincrement())
+  /// 字典类型
+  type      String
+  /// 显示名称
+  label     String
+  /// 字典值
+  value     String
+  /// 显示颜色
+  color     String?
+  /// 排序值
+  sort      Int      @default(0)
+  /// 是否启用
+  isEnabled Boolean  @default(true) @map("is_enabled")
+  /// 用户备注
+  remark    String?
+  /// 创建时间
+  createdAt DateTime @default(now()) @map("created_at")
+  /// 更新时间
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([type, value])
+  @@index([type, isEnabled, sort])
+  @@map("dictionary")
+}
+
+// 消息通知记录表：保存发送内容、渠道及发送结果
+model Notification {
+  /// 主键 ID
+  id            Int                 @id @default(autoincrement())
+  /// 关联用户 ID
+  userId        Int?                @map("user_id")
+  /// 消息模板编码
+  templateCode  String              @map("template_code")
+  /// 发送渠道
+  channel       NotificationChannel
+  /// 接收目标
+  receiver      String
+  /// 标题
+  title         String?
+  /// 内容
+  content       String              @db.Text
+  /// 关联业务类型
+  businessType  String?             @map("business_type")
+  /// 关联业务编号
+  relatedNo     String?             @map("related_no")
+  /// 消息发送状态
+  status        SendStatus          @default(PENDING)
+  /// 发送失败原因
+  failureReason String?             @map("failure_reason")
+  /// 实际发送时间
+  sentAt        DateTime?           @map("sent_at")
+  /// 创建时间
+  createdAt     DateTime            @default(now()) @map("created_at")
+
+  /// 关联消息接收用户
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+  @@map("notification")
+}
+
+// 操作日志表：记录后台敏感操作及数据变更前后内容
+model OperationLog {
+  /// 主键 ID
+  id           Int      @id @default(autoincrement())
+  /// 处理管理员 ID
+  adminId      Int?     @map("admin_id")
+  /// 操作人类型
+  operatorType String   @map("operator_type")
+  /// 操作人名称
+  operatorName String   @map("operator_name")
+  /// 业务模块
+  module       String
+  /// 操作动作
+  action       String
+  /// 跳转目标类型
+  targetType   String?  @map("target_type")
+  /// 操作目标 ID
+  targetId     String?  @map("target_id")
+  /// 变更前数据
+  beforeData   Json?    @map("before_data")
+  /// 变更后数据
+  afterData    Json?    @map("after_data")
+  /// 操作 IP 地址
+  ip           String?
+  /// 客户端 User-Agent
+  userAgent    String?  @map("user_agent")
+  /// 创建时间
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  /// 关联处理管理员
+  admin Admin? @relation(fields: [adminId], references: [id])
+
+  @@index([module, targetType, targetId])
+  @@index([adminId, createdAt])
+  @@index([createdAt])
+  @@map("operation_log")
 }

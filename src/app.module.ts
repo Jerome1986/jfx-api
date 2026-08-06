@@ -5,6 +5,8 @@ import { AdminModule } from './admin/admin.module';
 import { PrismaModule } from './prisma/prisma.modules';
 import { ScheduleModule } from '@nestjs/schedule'
 import { ConfigModule } from '@nestjs/config'
+import { CaseModule } from './case/case.module';
+import { CaseCategoryModule } from './case-category/case-category.module';
 
 @Module({
   imports: [
@@ -13,7 +15,9 @@ import { ConfigModule } from '@nestjs/config'
       isGlobal: true,
     }),
     PrismaModule,
-    AdminModule
+    AdminModule,
+    CaseModule,
+    CaseCategoryModule
   ],
   controllers: [AppController],
   providers: [AppService],
