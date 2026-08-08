@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { CreateCaseDto } from "./dto/create-case.dto";
 import { PrismaService } from "src/prisma/prisma.service";
-import { PublishStatus } from "@prisma/client";
+import { PublishStatus } from "../../generated/prisma/enums";
 
 @Injectable()
 export class caseRepository {

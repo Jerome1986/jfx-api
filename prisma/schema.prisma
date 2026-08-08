@@ -1,5 +1,7 @@
 generator client {
-  provider = "prisma-client-js"
+  provider     = "prisma-client"
+  output       = "../generated/prisma"
+  moduleFormat = "cjs"
 }
 
 datasource db {
@@ -146,15 +148,15 @@ model User {
   /// 主键 ID
   id                Int      @id @default(autoincrement())
   /// 用户编号
-  userNo            String   @unique @map("user_no")
+  userNo            String   @unique @map("user_no") @db.VarChar(64)
   /// 角色
   role              UserRole @default(CUSTOMER)
   /// 手机号码
-  mobile            String   @unique
+  mobile            String   @unique @db.VarChar(20)
   /// 密码哈希
   password          String?
   /// 微信 OpenID
-  openid            String?  @unique
+  openid            String?  @unique @db.VarChar(128)
   /// 昵称
   nickname          String?
   /// 真实姓名
@@ -215,11 +217,11 @@ model Employee {
   /// 关联用户 ID
   userId         Int       @unique @map("user_id")
   /// 员工编号
-  employeeNo     String    @unique @map("employee_no")
+  employeeNo     String    @unique @map("employee_no") @db.VarChar(64)
   /// 岗位
   position       String?
   /// 所属部门
-  department     String?
+  department     String?   @db.VarChar(100)
   /// 服务区域列表
   serviceRegions Json?     @map("service_regions")
   /// 数据权限范围
@@ -253,7 +255,7 @@ model Admin {
   /// 主键 ID
   id          Int       @id @default(autoincrement())
   /// 管理员登录名
-  username    String    @unique
+  username    String    @unique @db.VarChar(100)
   /// 密码哈希
   password    String
   /// 名称
@@ -333,8 +335,6 @@ model CaseCategory {
   id        Int      @id @default(autoincrement())
   /// 分类名称
   name      String
-  /// 分类编码
-  code      String   @unique
   /// 显示排序
   sort      Int      @default(0)
   /// 是否启用
@@ -358,7 +358,7 @@ model RenewalCategory {
   /// 分类名称
   name      String
   /// 分类编码
-  code      String   @unique
+  code      String   @unique @db.VarChar(100)
   /// 分类图标
   icon      String?
   /// 分类封面
@@ -390,7 +390,7 @@ model RenovationCase {
   /// 标签列表
   tags          Json?
   /// 所在城市
-  city          String?
+  city          String?       @db.VarChar(100)
   /// 户型
   roomType      String?       @map("room_type")
   /// 面积（平方米）
@@ -398,9 +398,9 @@ model RenovationCase {
   /// 装修风格
   style         String?
   /// 改造前图片列表
-  beforeImage  String         @map("before_images")
+  beforeImage   String        @map("before_images")
   /// 改造后图片列表
-  afterImage   String         @map("after_images")
+  afterImage    String        @map("after_images")
   /// 描述
   description   String?       @db.Text
   /// 改造亮点列表
@@ -617,7 +617,7 @@ model Product {
   /// 关联商品分类 ID
   categoryId      Int           @map("category_id")
   /// 商品编号
-  productNo       String        @unique @map("product_no")
+  productNo       String        @unique @map("product_no") @db.VarChar(64)
   /// 商品名称
   name            String
   /// 副标题或卖点
@@ -744,7 +744,7 @@ model Appointment {
   /// 主键 ID
   id            Int               @id @default(autoincrement())
   /// 预约编号
-  appointmentNo String            @unique @map("appointment_no")
+  appointmentNo String            @unique @map("appointment_no") @db.VarChar(64)
   /// 关联用户 ID
   userId        Int?              @map("user_id")
   /// 负责员工 ID
@@ -760,7 +760,7 @@ model Appointment {
   /// 客户姓名
   customerName  String            @map("customer_name")
   /// 手机号码
-  mobile        String
+  mobile        String            @db.VarChar(20)
   /// 房屋类型
   houseType     String?           @map("house_type")
   /// 所在城市
@@ -843,7 +843,7 @@ model RenovationProject {
   /// 主键 ID
   id             Int                     @id @default(autoincrement())
   /// 装修项目编号
-  projectNo      String                  @unique @map("project_no")
+  projectNo      String                  @unique @map("project_no") @db.VarChar(64)
   /// 关联预约 ID
   appointmentId  Int?                    @unique @map("appointment_id")
   /// 关联用户 ID
@@ -962,7 +962,7 @@ model ProductOrder {
   /// 主键 ID
   id              Int                @id @default(autoincrement())
   /// 商品订单编号
-  orderNo         String             @unique @map("order_no")
+  orderNo         String             @unique @map("order_no") @db.VarChar(64)
   /// 关联用户 ID
   userId          Int                @map("user_id")
   /// 来源渠道
@@ -998,7 +998,7 @@ model ProductOrder {
   /// 支付方式
   paymentMethod   String?            @map("payment_method")
   /// 支付流水号
-  paymentNo       String?            @map("payment_no")
+  paymentNo       String?            @map("payment_no") @db.VarChar(100)
   /// 支付时间
   paidAt          DateTime?          @map("paid_at")
   /// 取消时间
@@ -1067,7 +1067,7 @@ model InstallationOrder {
   /// 主键 ID
   id                Int                @id @default(autoincrement())
   /// 安装服务单编号
-  serviceNo         String             @unique @map("service_no")
+  serviceNo         String             @unique @map("service_no") @db.VarChar(64)
   /// 关联商品订单 ID
   orderId           Int                @unique @map("order_id")
   /// 负责员工 ID
@@ -1234,7 +1234,7 @@ model ServiceOutlet {
   /// 省份
   province      String?
   /// 所在城市
-  city          String
+  city          String   @db.VarChar(100)
   /// 区县
   district      String?
   /// 详细地址
@@ -1263,7 +1263,7 @@ model Feedback {
   /// 主键 ID
   id          Int            @id @default(autoincrement())
   /// 反馈编号
-  feedbackNo  String         @unique @map("feedback_no")
+  feedbackNo  String         @unique @map("feedback_no") @db.VarChar(64)
   /// 关联用户 ID
   userId      Int?           @map("user_id")
   /// 处理管理员 ID
@@ -1302,13 +1302,13 @@ model Dictionary {
   /// 主键 ID
   id        Int      @id @default(autoincrement())
   /// 字典类型
-  type      String
+  type      String   @db.VarChar(100)
   /// 显示名称
-  label     String
+  label     String   @db.VarChar(100)
   /// 字典值
-  value     String
+  value     String   @db.VarChar(100)
   /// 显示颜色
-  color     String?
+  color     String?  @db.VarChar(100)
   /// 排序值
   sort      Int      @default(0)
   /// 是否启用
@@ -1373,13 +1373,13 @@ model OperationLog {
   /// 操作人名称
   operatorName String   @map("operator_name")
   /// 业务模块
-  module       String
+  module       String   @db.VarChar(64)
   /// 操作动作
   action       String
   /// 跳转目标类型
-  targetType   String?  @map("target_type")
+  targetType   String?  @map("target_type") @db.VarChar(64)
   /// 操作目标 ID
-  targetId     String?  @map("target_id")
+  targetId     String?  @map("target_id") @db.VarChar(64)
   /// 变更前数据
   beforeData   Json?    @map("before_data")
   /// 变更后数据

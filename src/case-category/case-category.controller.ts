@@ -2,13 +2,14 @@ import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/commo
 import { CaseCategoryService } from './case-category.service';
 import { CreateCaseCategoryDto } from './dto/create-case-category.dto';
 import { UpdateCaseCategoryDto } from './dto/update-case-category.dto';
+import { UpdateCaseCategoryStatusDto } from './dto/update-case-category-status.dto';
 
 @Controller('case-category')
 export class CaseCategoryController {
   constructor(private readonly caseCategoryService: CaseCategoryService) { }
 
   // 新增分类
-  @Post()
+  @Post('add')
   create(@Body() createCaseCategoryDto: CreateCaseCategoryDto) {
     return this.caseCategoryService.create(createCaseCategoryDto);
   }
@@ -22,7 +23,16 @@ export class CaseCategoryController {
   // 更新分类
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateCaseCategoryDto: UpdateCaseCategoryDto) {
+    console.log('update', id, updateCaseCategoryDto)
     return this.caseCategoryService.update(+id, updateCaseCategoryDto);
+  }
+
+  // 启用或禁用分类
+  @Patch(':id/status')
+  updateStatus(@Param('id') id: string, @Body() updateCaseCategoryStatusDto: UpdateCaseCategoryStatusDto) {
+    console.log('status', updateCaseCategoryStatusDto)
+
+    return this.caseCategoryService.updateStatus(+id, updateCaseCategoryStatusDto.isEnabled);
   }
 
   // 删除分类
