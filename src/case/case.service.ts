@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { CreateCaseDto } from './dto/create-case.dto';
 import { caseRepository } from './case.repository';
+import { UpdateCaseDto } from './dto/update-case.dto';
+import { PublishStatus } from '../../generated/prisma/enums';
+import { SearchCaseQueryDto } from './dto/search-case-query.dto';
 
 @Injectable()
 export class CaseService {
@@ -26,5 +29,47 @@ export class CaseService {
       pageSize,
       totalPage: Math.ceil(total / pageSize),
     }
+  }
+
+  // 搜索案例
+  async searchCase(query: SearchCaseQueryDto) {
+    const [list, total] = await this.caseRepo.searchCase(query)
+
+    return {
+      list,
+      total,
+      pageNum: query.pageNum,
+      pageSize: query.pageSize,
+      totalPage: Math.ceil(total / query.pageSize),
+    }
+  }
+
+  // 更新案例
+  async updateCaseDto(id: number, updateCaseDto: UpdateCaseDto) {
+    const res = await this.caseRepo.updateCase(id, updateCaseDto)
+
+    return {
+      caseId: res.id
+    }
+  }
+
+  // 更新案例状态
+  changeStauts(id: number, status: PublishStatus) {
+    return this.caseRepo.changeStauts(id, status)
+  }
+
+  // 首页推荐
+  isRecommendedByHome(id: number, isRecommended: boolean) {
+    return this.caseRepo.isRecommendedByHome(id, isRecommended)
+  }
+
+  // 案例详情
+  async findOne(id: number) {
+    return this.caseRepo.findOne(id)
+  }
+
+  // 删除案例
+  remove(id: number) {
+    return this.caseRepo.remove(id)
   }
 }

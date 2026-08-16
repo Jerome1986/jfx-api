@@ -46,11 +46,11 @@ export class CreateCaseDto {
 
   @IsString({ message: '改造前封面必须是字符串' })
   @IsNotEmpty({ message: '改造前封面不能为空' })
-  beforeCover: string
+  beforeImage: string
 
   @IsString({ message: '改造后封面必须是字符串' })
   @IsNotEmpty({ message: '改造后封面不能为空' })
-  afterCover: string
+  afterImage: string
 
   @IsString({ message: '城市必须是字符串' })
   @IsNotEmpty({ message: '城市不能为空' })
@@ -110,8 +110,8 @@ export class CreateCaseDto {
   recommendSort: number
 
   @IsString({ message: '发布状态必须是字符串' })
-  @IsIn(['draft', 'published', 'offline'], {
-    message: '发布状态只能是draft、published或offline',
+  @IsIn(['DRAFT', 'PUBLISHED', 'OFFLINE'], {
+    message: '发布状态只能是DRAFT、PUBLISHED或OFFLINE',
   })
-  status: 'draft' | 'published' | 'offline'
+  status: 'DRAFT' | 'PUBLISHED' | 'OFFLINE'
 }

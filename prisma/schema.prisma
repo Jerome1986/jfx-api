@@ -16,6 +16,12 @@ enum UserRole {
   EMPLOYEE // 员工端用户
 }
 
+// 性别
+enum Gender {
+  MALE
+  FEMALE
+}
+
 // 后台管理员角色：控制后台菜单、操作和数据范围
 enum AdminRole {
   SUPER_ADMIN // 超级管理员
@@ -161,6 +167,8 @@ model User {
   nickname          String?
   /// 真实姓名
   realName          String?  @map("real_name")
+  /// 性别
+  gender            Gender   @default(MALE)
   /// 头像地址
   avatar            String?
   /// 来源渠道
@@ -224,8 +232,6 @@ model Employee {
   department     String?   @db.VarChar(100)
   /// 服务区域列表
   serviceRegions Json?     @map("service_regions")
-  /// 数据权限范围
-  dataScope      String    @default("SELF") @map("data_scope")
   /// 入职时间
   hiredAt        DateTime? @map("hired_at")
   /// 是否在职或可用
@@ -351,34 +357,6 @@ model CaseCategory {
   @@map("case_category")
 }
 
-// 焕新空间分类表：维护厨房、卫生间、阳台等适用空间
-model RenewalCategory {
-  /// 主键 ID
-  id        Int      @id @default(autoincrement())
-  /// 分类名称
-  name      String
-  /// 分类编码
-  code      String   @unique @db.VarChar(100)
-  /// 分类图标
-  icon      String?
-  /// 分类封面
-  cover     String?
-  /// 显示排序
-  sort      Int      @default(0)
-  /// 是否启用
-  isEnabled Boolean  @default(true) @map("is_enabled")
-  /// 创建时间
-  createdAt DateTime @default(now()) @map("created_at")
-  /// 更新时间
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  /// 关联焕新方案列表
-  plans RenewalPlan[]
-
-  @@index([isEnabled, sort])
-  @@map("renewal_category")
-}
-
 // 装修案例表：保存改造案例内容、费用及推荐信息
 model RenovationCase {
   /// 主键 ID
@@ -446,8 +424,6 @@ model RenovationCase {
 model RenewalPlan {
   /// 主键 ID
   id            Int           @id @default(autoincrement())
-  /// 焕新空间分类 ID
-  categoryId    Int           @map("category_id")
   /// 焕新方案名称
   name          String
   /// 简介
@@ -479,8 +455,6 @@ model RenewalPlan {
   /// 更新时间
   updatedAt     DateTime      @updatedAt @map("updated_at")
 
-  /// 关联焕新空间分类
-  category     RenewalCategory     @relation(fields: [categoryId], references: [id])
   /// 关联服务项目列表
   items        RenewalPlanItem[]
   /// 关联预约列表
@@ -489,7 +463,7 @@ model RenewalPlan {
   projects     RenovationProject[]
 
   @@index([status, isRecommended, recommendSort])
-  @@index([categoryId, status, sort])
+  @@index([status, sort])
   @@map("renewal_plan")
 }
 
@@ -541,10 +515,6 @@ model Banner {
   target     String?
   /// 排序值
   sort       Int           @default(0)
-  /// 生效时间
-  startAt    DateTime?     @map("start_at")
-  /// 失效时间
-  endAt      DateTime?     @map("end_at")
   /// 发布状态
   status     PublishStatus @default(DRAFT)
   /// 创建时间
@@ -586,10 +556,6 @@ model ProductCategory {
   parentId  Int?     @map("parent_id")
   /// 分类名称
   name      String
-  /// 图标地址
-  icon      String?
-  /// 封面图片
-  cover     String?
   /// 排序值
   sort      Int      @default(0)
   /// 是否启用
@@ -613,57 +579,39 @@ model ProductCategory {
 // 商品表：保存商品信息、简单规格、价格及当前库存
 model Product {
   /// 主键 ID
-  id              Int           @id @default(autoincrement())
-  /// 关联商品分类 ID
-  categoryId      Int           @map("category_id")
-  /// 商品编号
-  productNo       String        @unique @map("product_no") @db.VarChar(64)
+  id                   Int      @id @default(autoincrement())
+  /// 商品分类 ID
+  categoryId           Int      @map("category_id")
   /// 商品名称
-  name            String
-  /// 副标题或卖点
-  subtitle        String?
-  /// 品牌
-  brand           String?
+  name                 String   @db.VarChar(255)
+  /// 商品描述或卖点
+  description          String?  @db.VarChar(500)
+  /// 品牌，例如：九牧JOMOO
+  brand                String?  @db.VarChar(100)
+  /// 产品型号，例如：X32025-548/1B-Z
+  model                String?  @db.VarChar(100)
+  /// 可选择的规格，例如：
+  /// ["L3092D拉丝", "L3092镀洛", "L3092H枪灰"]
+  specifications       Json?
   /// 销售价
-  salePrice       Decimal       @map("sale_price") @db.Decimal(10, 2)
-  /// 划线价
-  originalPrice   Decimal?      @map("original_price") @db.Decimal(10, 2)
-  /// 成本价
-  costPrice       Decimal?      @map("cost_price") @db.Decimal(10, 2)
-  /// 简单规格名称
-  skuName         String?       @map("sku_name")
-  /// 简单规格值
-  skuValue        String?       @map("sku_value")
+  price                Decimal  @db.Decimal(10, 2)
   /// 当前库存
-  stock           Int           @default(0)
-  /// 库存预警值
-  warningStock    Int           @default(0) @map("warning_stock")
-  /// 累计销量
-  salesCount      Int           @default(0) @map("sales_count")
-  /// 单次限购数量
-  purchaseLimit   Int?          @map("purchase_limit")
+  stock                Int      @default(0)
   /// 商品主图
-  mainImage       String        @map("main_image")
-  /// 图片列表
-  images          Json?
-  /// 详情内容
-  detail          String?       @db.Text
-  /// 规格参数
-  parameters      Json?
-  /// 服务说明
-  serviceInfo     String?       @map("service_info") @db.Text
-  /// 是否需要安装
-  requiresInstall Boolean       @default(false) @map("requires_install")
-  /// 安装费用
-  installationFee Decimal       @default(0) @map("installation_fee") @db.Decimal(10, 2)
-  /// 服务区域列表
-  serviceRegions  Json?         @map("service_regions")
-  /// 发布状态
-  status          PublishStatus @default(DRAFT)
+  mainImage            String   @map("main_image") @db.VarChar(500)
+  /// 商品详情图片，例如：
+  /// ["图片地址1", "图片地址2"]
+  detailImages         Json?    @map("detail_images")
+  /// 是否包含基础安装
+  installationIncluded Boolean  @default(true) @map("installation_included")
+  /// 是否上架
+  isPublished          Boolean  @default(false) @map("is_published")
+  /// 后台排序，数值越小越靠前
+  sort                 Int      @default(0)
   /// 创建时间
-  createdAt       DateTime      @default(now()) @map("created_at")
+  createdAt            DateTime @default(now()) @map("created_at")
   /// 更新时间
-  updatedAt       DateTime      @updatedAt @map("updated_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
 
   /// 分类
   category   ProductCategory    @relation(fields: [categoryId], references: [id])
@@ -678,8 +626,8 @@ model Product {
   /// 关联项目报价明细列表
   quoteItems ProjectQuoteItem[]
 
-  @@index([categoryId, status])
-  @@index([status, stock])
+  @@index([categoryId])
+  @@index([isPublished, sort])
   @@map("product")
 }
 
@@ -1033,8 +981,6 @@ model ProductOrderItem {
   orderId         Int     @map("order_id")
   /// 关联商品 ID
   productId       Int?    @map("product_id")
-  /// 商品编号快照
-  productNo       String  @map("product_no")
   /// 商品名称快照
   productName     String  @map("product_name")
   /// 规格描述快照
