@@ -1,26 +1,16 @@
-import { Type } from 'class-transformer'
 import {
   IsArray,
   IsBoolean,
   IsDateString,
-  IsInt,
   IsMobilePhone,
   IsOptional,
   IsString,
-  Min,
 } from 'class-validator'
 
 export class CreateEmployeeDto {
-  // 关联用户 ID；用户不存在时会使用该 ID 注册新用户
-  @Type(() => Number)
-  @IsInt({ message: '用户ID必须是整数' })
-  @Min(1, { message: '用户ID必须大于0' })
-  userId: number
-
-  // 新用户注册手机号；用户未注册时必填
-  @IsOptional()
+  // 员工手机号；用于查询或注册关联用户
   @IsMobilePhone('zh-CN', {}, { message: '手机号码格式不正确' })
-  mobile?: string
+  mobile: string
 
   // 新用户昵称
   @IsOptional()

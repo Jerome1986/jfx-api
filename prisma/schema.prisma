@@ -546,6 +546,35 @@ model Favorite {
   @@map("favorite")
 }
 
+// ==================== 施工服务 ====================
+
+// 施工服务表：保存保护、拆除、保洁、防水和安装等按单位计价的服务
+model ConstructionService {
+  /// 主键 ID
+  id          Int      @id @default(autoincrement())
+  /// 服务名称
+  name        String   @db.VarChar(255)
+  /// 服务内容或适用范围
+  description String?  @db.VarChar(500)
+  /// 计价单位，例如：㎡、项、个
+  unit        String   @db.VarChar(32)
+  /// 基础单价
+  unitPrice   Decimal  @map("unit_price") @db.Decimal(10, 2)
+  /// 服务图片
+  image       String?  @db.VarChar(500)
+  /// 是否启用
+  isEnabled   Boolean  @default(true) @map("is_enabled")
+  /// 排序值，数值越小越靠前
+  sort        Int      @default(0)
+  /// 创建时间
+  createdAt   DateTime @default(now()) @map("created_at")
+  /// 更新时间
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([isEnabled, sort])
+  @@map("construction_service")
+}
+
 // ==================== 商品 ====================
 
 // 商品分类表：保存一级、二级商品分类树

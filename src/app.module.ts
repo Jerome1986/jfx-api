@@ -14,6 +14,7 @@ import { ProductModule } from './product/product.module';
 import { UserModule } from './user/user.module';
 import { AddressModule } from './address/address.module';
 import { EmployeeModule } from './employee/employee.module';
+import { ConstructionServiceModule } from './construction-service/construction-service.module';
 
 @Module({
   imports: [
@@ -31,7 +32,8 @@ import { EmployeeModule } from './employee/employee.module';
     ProductModule,
     UserModule,
     AddressModule,
-    EmployeeModule
+    EmployeeModule,
+    ConstructionServiceModule
   ],
   controllers: [AppController],
   providers: [AppService],

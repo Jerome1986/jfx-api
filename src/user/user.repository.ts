@@ -62,7 +62,6 @@ export class UserRepository {
   // 注册员工用户，支持传入事务客户端
   createEmployeeUser(
     data: {
-      id: number
       mobile: string
       nickname?: string
       realName?: string
@@ -150,8 +149,9 @@ export class UserRepository {
   }
 
   // 根据手机号查询用户
-  findByMobile(mobile: string) {
-    return this.prisma.user.findUnique({ where: { mobile }, select: { id: true } })
+  findByMobile(mobile: string, tx?: Prisma.TransactionClient) {
+    const db = tx ?? this.prisma
+    return db.user.findUnique({ where: { mobile }, select: { id: true } })
   }
 
 
