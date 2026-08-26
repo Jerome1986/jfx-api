@@ -1,3 +1,4 @@
+// 文件说明：ESLint 代码检查配置，统一项目代码质量规则。
 // @ts-check
 import eslint from '@eslint/js';
 import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';

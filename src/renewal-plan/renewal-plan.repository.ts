@@ -1,3 +1,4 @@
+// 文件说明：续费方案数据仓储，封装数据库访问操作。
 import { Injectable } from '@nestjs/common'
 import { PrismaService } from 'src/prisma/prisma.service'
 import { CreateRenewalPlanDto } from './dto/create-renewal-plan.dto'

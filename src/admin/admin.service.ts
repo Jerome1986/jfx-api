@@ -1,3 +1,4 @@
+// 文件说明：管理员业务服务，负责业务规则与流程编排。
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import { AdminRepository } from './admin.repository';

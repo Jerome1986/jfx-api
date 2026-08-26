@@ -1,3 +1,4 @@
+// 文件说明：员工模块，组织控制器及相关依赖。
 import { Module } from '@nestjs/common';
 import { EmployeeService } from './employee.service';
 import { EmployeeController } from './employee.controller';

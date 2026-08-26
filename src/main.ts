@@ -1,3 +1,4 @@
+// 文件说明：应用启动入口，负责创建并配置 NestJS 服务。
 import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';

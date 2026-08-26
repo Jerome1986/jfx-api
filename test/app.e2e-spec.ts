@@ -1,3 +1,4 @@
+// 文件说明：应用接口的端到端测试。
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';

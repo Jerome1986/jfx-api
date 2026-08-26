@@ -1,3 +1,4 @@
+// 文件说明：产品分类业务服务，负责业务规则与流程编排。
 import { Injectable } from '@nestjs/common'
 import { CreateProductCategoryDto } from './dto/create-product-category.dto'
 import { UpdateProductCategoryDto } from './dto/update-product-category.dto'

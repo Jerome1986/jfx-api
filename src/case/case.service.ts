@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+// 文件说明：案例业务服务，负责业务规则与流程编排。
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateCaseDto } from './dto/create-case.dto';
 import { caseRepository } from './case.repository';
 import { UpdateCaseDto } from './dto/update-case.dto';
@@ -19,9 +20,12 @@ export class CaseService {
   }
 
   // 获取所有案例
-  async findAllCase(pageNum: number, pageSize: number) {
-    const [list, total] = await this.caseRepo.findAllCase(pageNum, pageSize)
-
+  async findAllCase(pageNum: number, pageSize: number, userId?: number) {
+    const [data, total] = await this.caseRepo.findAllCase(pageNum, pageSize, userId)
+    const list = data.map(({ favorites, ...item }) => ({
+      ...item,
+      isFavorite: favorites.length > 0
+    }))
     return {
       list,
       total,
@@ -64,8 +68,16 @@ export class CaseService {
   }
 
   // 案例详情
-  async findOne(id: number) {
-    return this.caseRepo.findOne(id)
+  async findOne(id: number, userId?: number) {
+    const res = await this.caseRepo.findOne(id, userId)
+    if (!res) {
+      throw new NotFoundException('案例不存在')
+    }
+    const { favorites, ...data } = res
+    return {
+      ...data,
+      isFavorite: favorites.length > 0
+    }
   }
 
   // 删除案例

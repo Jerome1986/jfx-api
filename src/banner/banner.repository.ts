@@ -1,3 +1,4 @@
+// 文件说明：轮播图数据仓储，封装数据库访问操作。
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateBannerDto } from './dto/create-banner.dto';

@@ -1,3 +1,4 @@
+// 文件说明：用户模块，组织控制器及相关依赖。
 import { Module } from '@nestjs/common';
 import { UserService } from './user.service';
 import { UserController } from './user.controller';

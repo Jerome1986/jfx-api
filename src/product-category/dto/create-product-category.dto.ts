@@ -1,3 +1,4 @@
+// 文件说明：产品分类创建请求的数据传输对象。
 import {
   IsBoolean,
   IsInt,

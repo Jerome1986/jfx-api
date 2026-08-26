@@ -1,3 +1,4 @@
+// 文件说明：员工业务服务，负责业务规则与流程编排。
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';

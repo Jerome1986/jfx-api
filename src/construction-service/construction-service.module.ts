@@ -1,3 +1,4 @@
+// 文件说明：施工服务模块，组织控制器及相关依赖。
 import { Module } from '@nestjs/common'
 import { ConstructionServiceController } from './construction-service.controller'
 import { ConstructionServiceRepository } from './construction-service.repository'

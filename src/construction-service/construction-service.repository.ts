@@ -1,3 +1,4 @@
+// 文件说明：施工服务数据仓储，封装数据库访问操作。
 import { Injectable } from '@nestjs/common'
 import { Prisma } from '../../generated/prisma/client'
 import { PrismaService } from 'src/prisma/prisma.service'

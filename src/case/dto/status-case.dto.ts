@@ -1,3 +1,4 @@
+// 文件说明：案例状态变更请求的数据传输对象。
 import { PublishStatus } from "../../../generated/prisma/enums";
 import { IsEnum } from "class-validator";
 

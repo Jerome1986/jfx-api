@@ -1,3 +1,4 @@
+// 文件说明：案例分类创建请求的数据传输对象。
 import {
   IsInt,
   IsNotEmpty,

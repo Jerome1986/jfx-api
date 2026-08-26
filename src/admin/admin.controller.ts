@@ -1,3 +1,4 @@
+// 文件说明：管理员控制器，处理相关 HTTP 请求。
 import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { CreateAdminDto } from './dto/create-admin.dto';

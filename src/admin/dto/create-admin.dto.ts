@@ -1,3 +1,4 @@
+// 文件说明：管理员创建请求的数据传输对象。
 import { IsString, IsNotEmpty, Length } from 'class-validator'
 
 export class CreateAdminDto {

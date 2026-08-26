@@ -1,3 +1,4 @@
+// 文件说明：续费方案控制器，处理相关 HTTP 请求。
 import {
   Body,
   Controller,

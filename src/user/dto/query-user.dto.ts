@@ -1,3 +1,4 @@
+// 文件说明：用户查询请求的数据传输对象。
 import { Transform, Type } from 'class-transformer'
 import {
   IsBoolean,

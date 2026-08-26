@@ -1,3 +1,4 @@
+// 文件说明：数据库模型定义，描述数据表、枚举及关联关系。
 generator client {
   provider     = "prisma-client"
   output       = "../generated/prisma"
@@ -735,7 +736,7 @@ model Appointment {
   /// 来源渠道
   source        String?
   /// 客户姓名
-  customerName  String            @map("customer_name")
+  customerName  String?           @map("customer_name")
   /// 手机号码
   mobile        String            @db.VarChar(20)
   /// 房屋类型
@@ -748,6 +749,8 @@ model Appointment {
   roomLayout    String?           @map("room_layout")
   /// 装修需求
   demand        String?           @db.Text
+  /// 预约提交时的方案及明细快照
+  snapshot      Json?
   /// 关注重点
   focus         String?
   /// 上门日期

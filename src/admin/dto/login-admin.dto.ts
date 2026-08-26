@@ -1,3 +1,4 @@
+// 文件说明：管理员登录请求的数据传输对象。
 import { IsString, IsNotEmpty, Length } from 'class-validator'
 
 export class LoginAdminDto {

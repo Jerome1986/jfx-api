@@ -1,3 +1,4 @@
+// 文件说明：案例分类数据仓储，封装数据库访问操作。
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "src/prisma/prisma.service";
 import { CreateCaseCategoryDto } from "./dto/create-case-category.dto";
@@ -15,6 +16,22 @@ export class caseCategoryRepository {
   // 获取所有分类
   findAll() {
     return this.prisma.caseCategory.findMany()
+  }
+
+  // 根据分类ID获取案例
+  findCasesByCategoryId(categoryId: number, pageNum: number, pageSize: number) {
+    const where = { categoryId }
+
+    return Promise.all([
+      this.prisma.renovationCase.findMany({
+        where,
+        skip: (pageNum - 1) * pageSize,
+        take: pageSize,
+        include: { favorites: true },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.renovationCase.count({ where }),
+    ])
   }
 
   // 更新分类

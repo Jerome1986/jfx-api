@@ -1,3 +1,4 @@
+// 文件说明：管理员数据仓储，封装数据库访问操作。
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "src/prisma/prisma.service";
 

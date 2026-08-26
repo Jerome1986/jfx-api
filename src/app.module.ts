@@ -1,3 +1,4 @@
+// 文件说明：应用根模块，集中注册各业务模块。
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -15,6 +16,8 @@ import { UserModule } from './user/user.module';
 import { AddressModule } from './address/address.module';
 import { EmployeeModule } from './employee/employee.module';
 import { ConstructionServiceModule } from './construction-service/construction-service.module';
+import { AppointmentModule } from './appointment/appointment.module';
+import { FavoriteModule } from './favorite/favorite.module';
 
 @Module({
   imports: [
@@ -33,7 +36,9 @@ import { ConstructionServiceModule } from './construction-service/construction-s
     UserModule,
     AddressModule,
     EmployeeModule,
-    ConstructionServiceModule
+    ConstructionServiceModule,
+    AppointmentModule,
+    FavoriteModule,
   ],
   controllers: [AppController],
   providers: [AppService],

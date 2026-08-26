@@ -1,3 +1,4 @@
+// 文件说明：管理员模块，组织控制器及相关依赖。
 import { Module } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { AdminController } from './admin.controller';

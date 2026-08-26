@@ -1,3 +1,4 @@
+// 文件说明：员工更新请求的数据传输对象。
 import { PartialType, OmitType } from '@nestjs/mapped-types'
 import { CreateEmployeeDto } from './create-employee.dto'
 

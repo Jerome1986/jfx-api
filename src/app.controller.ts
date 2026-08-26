@@ -1,3 +1,4 @@
+// 文件说明：应用基础控制器，提供根级接口。
 import { Controller, Get } from '@nestjs/common';
 import { AppService } from './app.service';
 

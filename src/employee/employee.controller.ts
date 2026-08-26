@@ -1,3 +1,4 @@
+// 文件说明：员工控制器，处理相关 HTTP 请求。
 import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, Query } from '@nestjs/common';
 import { EmployeeService } from './employee.service';
 import { CreateEmployeeDto } from './dto/create-employee.dto';

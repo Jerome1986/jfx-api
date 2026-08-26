@@ -1,3 +1,4 @@
+// 文件说明：案例数据仓储，封装数据库访问操作。
 import { Injectable } from "@nestjs/common";
 import { CreateCaseDto } from "./dto/create-case.dto";
 import { PrismaService } from "src/prisma/prisma.service";
@@ -35,11 +36,19 @@ export class caseRepository {
   }
 
   // 获取所有案例（分页）
-  async findAllCase(pageNum: number, pageSize: number) {
+  async findAllCase(pageNum: number, pageSize: number, userId?: number) {
     return await Promise.all([
       this.prisma.renovationCase.findMany({
         skip: (pageNum - 1) * pageSize,
         take: pageSize,
+        include: {
+          favorites: {
+            where: userId === undefined
+              ? { userId: { in: [] } }
+              : { userId },
+            select: { id: true }
+          }
+        },
         orderBy: { createdAt: 'desc' }
       }),
       this.prisma.renovationCase.count()
@@ -116,8 +125,18 @@ export class caseRepository {
   }
 
   // 案例详情
-  findOne(id: number) {
-    return this.prisma.renovationCase.findUnique({ where: { id } })
+  findOne(id: number, userId?: number) {
+    return this.prisma.renovationCase.findUnique({
+      where: { id },
+      include: {
+        favorites: {
+          where: userId === undefined
+            ? { userId: { in: [] } }
+            : { userId },
+          select: { id: true }
+        }
+      }
+    })
   }
 
   // 删除案例

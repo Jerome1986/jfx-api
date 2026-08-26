@@ -1,3 +1,4 @@
+// 文件说明：地址模块，组织控制器及相关依赖。
 import { Module } from '@nestjs/common';
 import { AddressService } from './address.service';
 import { AddressController } from './address.controller';

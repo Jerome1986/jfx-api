@@ -1,3 +1,4 @@
+// 文件说明：轮播图控制器，处理相关 HTTP 请求。
 import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
 import { BannerService } from './banner.service';
 import { CreateBannerDto } from './dto/create-banner.dto';

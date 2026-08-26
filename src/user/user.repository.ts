@@ -1,3 +1,4 @@
+// 文件说明：用户数据仓储，封装数据库访问操作。
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "src/prisma/prisma.service";
 import { generateRandomCode } from 'src/utils/random.util'
@@ -99,13 +100,13 @@ export class UserRepository {
       status,
       ...(normalizedKeyword
         ? {
-            OR: [
-              { userNo: { contains: normalizedKeyword } },
-              { mobile: { contains: normalizedKeyword } },
-              { nickname: { contains: normalizedKeyword } },
-              { realName: { contains: normalizedKeyword } },
-            ],
-          }
+          OR: [
+            { userNo: { contains: normalizedKeyword } },
+            { mobile: { contains: normalizedKeyword } },
+            { nickname: { contains: normalizedKeyword } },
+            { realName: { contains: normalizedKeyword } },
+          ],
+        }
         : {}),
     }
 
@@ -145,6 +146,38 @@ export class UserRepository {
       appointmentCount: _count.appointments,
       favoriteCount: _count.favorites,
       couponCount: _count.userCoupons,
+    }
+  }
+
+  // 查询用户关联数据汇总
+  async summary(userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        points: true,
+        _count: {
+          select: {
+            appointments: {
+              where: {
+                status: { notIn: ['COMPLETED', 'CANCELED'] },
+              },
+            },
+            favorites: true,
+            userCoupons: {
+              where: { status: 'AVAILABLE' },
+            },
+          },
+        },
+      },
+    })
+
+    if (!user) return null
+
+    return {
+      points: user.points,
+      appointmentCount: user._count.appointments,
+      favoriteCount: user._count.favorites,
+      couponCount: user._count.userCoupons,
     }
   }
 

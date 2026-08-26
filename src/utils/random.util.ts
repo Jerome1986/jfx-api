@@ -1,3 +1,4 @@
+// 文件说明：随机值生成相关的通用工具。
 import { randomInt } from 'node:crypto'
 
 const ALPHANUMERIC_CHARACTERS =

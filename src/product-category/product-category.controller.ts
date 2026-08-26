@@ -1,3 +1,4 @@
+// 文件说明：产品分类控制器，处理相关 HTTP 请求。
 import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common'
 import { CreateProductCategoryDto } from './dto/create-product-category.dto'
 import { UpdateProductCategoryStatusDto } from './dto/update-product-category-status.dto'

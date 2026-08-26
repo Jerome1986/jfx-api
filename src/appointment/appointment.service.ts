@@ -1,0 +1,204 @@
+// 文件说明：预约业务服务，负责预约创建流程编排。
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common'
+import { Decimal } from '@prisma/client/runtime/client'
+import { randomBytes } from 'node:crypto'
+import { AppointmentType } from '../../generated/prisma/enums'
+import { AppointmentRepository } from './appointment.repository'
+import { CreateFollowUpDto } from './dto/create-follow-up.dto'
+import { CreatePlanAppointmentDto } from './dto/create-plan-appointment.dto'
+import { AppointmentTypeFilter } from './dto/query-plan-appointment.dto'
+import { CreateBudgetAppointmentDto } from './dto/create-budget-appointment.dot'
+
+@Injectable()
+export class AppointmentService {
+  constructor(private readonly appointmentRepo: AppointmentRepository) {}
+
+  // 创建焕新方案预约
+  async createPlanAppointment(dto: CreatePlanAppointmentDto) {
+    // 第一步：校验登录用户
+    const user = await this.getAvailableUser(dto.userId)
+
+    // 第二步：查询已发布的焕新方案
+    const plan = await this.appointmentRepo.findPublishedPlan(dto.planId)
+    if (!plan) {
+      throw new NotFoundException('焕新方案不存在或已下线')
+    }
+
+    // 第三步：预约属于待员工复核的线索，直接保存前端提交的选择快照
+    const snapshot = {
+      title: dto.snapshot.title,
+      cover: dto.snapshot.cover ?? null,
+      referencePrice: dto.snapshot.referencePrice,
+      items: dto.snapshot.items.map((item) => ({
+        sourceItemId: item.sourceItemId,
+        candidateId: item.candidateId ?? null,
+        productId: item.productId ?? null,
+        category: item.category,
+        name: item.name,
+        description: item.description ?? null,
+        unit: item.unit,
+        unitPrice: item.unitPrice,
+        quantity: item.quantity,
+        image: item.image ?? null,
+      })),
+    }
+    const appointment = await this.appointmentRepo.createPlanAppointment({
+      appointmentNo: this.generateAppointmentNo(),
+      userId: user.id,
+      planId: plan.id,
+      mobile: user.mobile,
+      demand: plan.summary ?? undefined,
+      snapshot,
+    })
+
+    // 第四步：返回预约记录 ID 和预约编号
+    return {
+      appointmentId: appointment.id,
+      appointmentNo: appointment.appointmentNo,
+    }
+  }
+
+  // 查询并校验预约用户
+  private async getAvailableUser(userId?: number | null) {
+    if (!userId) {
+      throw new UnauthorizedException('请先登录后再预约')
+    }
+
+    const user = await this.appointmentRepo.findUser(userId)
+    if (!user) {
+      throw new UnauthorizedException('登录状态无效，请重新登录')
+    }
+    if (!user.status) {
+      throw new ForbiddenException('账号已被禁用')
+    }
+    return user
+  }
+
+  // 生成带时间戳和随机值的预约编号
+  private generateAppointmentNo() {
+    const timestamp = new Date().toISOString().replace(/\D/g, '').slice(0, 17)
+    const random = randomBytes(3).toString('hex').toUpperCase()
+    return `APT${timestamp}${random}`
+  }
+
+  // 获取预约列表；不传类型或传 ALL 时查询全部预约
+  async GetPlanAll(
+    pageNum: number,
+    pageSize: number,
+    type?: AppointmentTypeFilter,
+  ) {
+    const appointmentType: AppointmentType | undefined =
+      type && type !== 'ALL' ? type : undefined
+    const [list, total] = await this.appointmentRepo.GetPlanAll(
+      pageNum,
+      pageSize,
+      appointmentType,
+    )
+
+    return {
+      list,
+      total,
+      pageNum,
+      pageSize,
+      totalPage: Math.ceil(total / pageSize),
+    }
+  }
+
+  // 获取当前登录用户的预约列表
+  async getMyAppointments(
+    userId: number,
+    pageNum: number,
+    pageSize: number,
+    type?: AppointmentTypeFilter,
+  ) {
+    const appointmentType: AppointmentType | undefined =
+      type && type !== 'ALL' ? type : undefined
+    const [list, total] = await this.appointmentRepo.getMyAppointments(
+      userId,
+      pageNum,
+      pageSize,
+      appointmentType,
+    )
+
+    return {
+      list,
+      total,
+      pageNum,
+      pageSize,
+      totalPage: Math.ceil(total / pageSize),
+    }
+  }
+
+  // 获取焕新方案预约详情
+  findOne(id: number) {
+    return this.appointmentRepo.findOne(id)
+  }
+
+  // 后台新增预约跟进记录
+  async createFollowUp(appointmentId: number, dto: CreateFollowUpDto) {
+    const appointment =
+      await this.appointmentRepo.findAppointmentById(appointmentId)
+    if (!appointment) {
+      throw new NotFoundException('预约不存在')
+    }
+
+    if (dto.employeeId) {
+      const employee = await this.appointmentRepo.findEmployeeById(
+        dto.employeeId,
+      )
+      if (!employee) {
+        throw new NotFoundException('跟进负责人不存在')
+      }
+    }
+
+    return this.appointmentRepo.createFollowUp({
+      appointmentId,
+      employeeId: dto.employeeId ?? null,
+      content: dto.content,
+      nextFollowAt: dto.nextFollowAt ? new Date(dto.nextFollowAt) : null,
+    })
+  }
+
+  // 取消焕新方案预约
+  async cancelPlanAppointment(id: number) {
+    const appointment = await this.appointmentRepo.findAppointmentForCancel(id)
+    if (!appointment) {
+      throw new NotFoundException('预约不存在')
+    }
+    if (appointment.type !== 'PLAN') {
+      throw new BadRequestException('该预约不是焕新方案预约')
+    }
+    if (appointment.status === 'COMPLETED') {
+      throw new BadRequestException('已完成的预约不能取消')
+    }
+    if (appointment.status === 'CANCELED') {
+      return appointment
+    }
+
+    return this.appointmentRepo.cancelPlanAppointment(id, new Date())
+  }
+
+  // 装修计算器预约提交
+  async createBudgetAppointment(
+    createBudgetAppointmentDto: CreateBudgetAppointmentDto,
+  ) {
+    const existingAppointment =
+      await this.appointmentRepo.findBudgetAppointmentByUserId(
+        createBudgetAppointmentDto.userId,
+      )
+    if (existingAppointment) {
+      throw new BadRequestException('已经预约过了，请耐心等待')
+    }
+
+    return this.appointmentRepo.createBudgetAppointment({
+      ...createBudgetAppointmentDto,
+      area: new Decimal(createBudgetAppointmentDto.area),
+    })
+  }
+}

@@ -1,3 +1,4 @@
+// 文件说明：产品业务服务，负责业务规则与流程编排。
 import { Injectable } from '@nestjs/common';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';

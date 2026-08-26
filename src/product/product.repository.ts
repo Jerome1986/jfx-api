@@ -1,3 +1,4 @@
+// 文件说明：产品数据仓储，封装数据库访问操作。
 import { Injectable } from '@nestjs/common'
 import { PrismaService } from 'src/prisma/prisma.service'
 import { CreateProductDto } from './dto/create-product.dto'

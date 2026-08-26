@@ -1,3 +1,4 @@
+// 文件说明：轮播图业务服务，负责业务规则与流程编排。
 import { Injectable } from '@nestjs/common';
 import { CreateBannerDto } from './dto/create-banner.dto';
 import { UpdateBannerDto } from './dto/update-banner.dto';

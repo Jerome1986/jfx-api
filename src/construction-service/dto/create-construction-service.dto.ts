@@ -1,3 +1,4 @@
+// 文件说明：施工服务创建请求的数据传输对象。
 import {
   IsBoolean,
   IsInt,

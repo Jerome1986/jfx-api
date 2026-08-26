@@ -1,3 +1,4 @@
+// 文件说明：用户控制器，处理相关 HTTP 请求。
 import {
   Body,
   Controller,
@@ -42,12 +43,18 @@ export class UserController {
     @Param('id', ParseIntPipe) id: number,
     @Body() updateUserDto: UpdateUserDto,
   ) {
-    return this.userService.update(id, updateUserDto)
+    return this.userService.update(+id, updateUserDto)
   }
 
   // 逻辑删除用户
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.userService.remove(id)
+  }
+
+  // 用户数据汇总
+  @Get('summary/:userId')
+  summary(@Param('userId', ParseIntPipe) userId: number) {
+    return this.userService.summary(userId)
   }
 }

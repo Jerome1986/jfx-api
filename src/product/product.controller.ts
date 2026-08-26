@@ -1,3 +1,4 @@
+// 文件说明：产品控制器，处理相关 HTTP 请求。
 import {
   Controller,
   Get,

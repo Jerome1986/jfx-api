@@ -1,3 +1,4 @@
+// 文件说明：Prisma 数据库客户端服务，统一管理数据库连接。
 // src/prisma/prisma.servive.ts
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { PrismaMariaDb } from '@prisma/adapter-mariadb';

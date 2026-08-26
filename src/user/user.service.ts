@@ -1,3 +1,4 @@
+// 文件说明：用户业务服务，负责业务规则与流程编排。
 import {
   BadRequestException,
   ForbiddenException,
@@ -16,7 +17,7 @@ export class UserService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly wxUtil: WxUtil,
-    private userRepo: UserRepository,
+    private userRepo: UserRepository
   ) { }
 
   // 前端微信登录
@@ -105,5 +106,14 @@ export class UserService {
     } catch {
       throw new BadRequestException('用户删除失败')
     }
+  }
+
+  // 用户数据汇总
+  async summary(userId: number) {
+    const summary = await this.userRepo.summary(userId)
+    if (!summary) {
+      throw new NotFoundException('用户不存在')
+    }
+    return summary
   }
 }

@@ -1,3 +1,4 @@
+// 文件说明：案例控制器，处理相关 HTTP 请求。
 import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
 import { CaseService } from './case.service';
 import { CreateCaseDto } from './dto/create-case.dto';
@@ -22,8 +23,9 @@ export class CaseController {
   findCase(@Query() query: QueryCase) {
     const pageNum = Number(query.pageNum) || 1
     const pageSize = Number(query.pageSize) || 10
+    const userId = query.userId === undefined ? undefined : +query.userId
 
-    return this.caseService.findAllCase(pageNum, pageSize)
+    return this.caseService.findAllCase(pageNum, pageSize, userId)
   }
 
   // 搜索案例（分页）
@@ -64,8 +66,9 @@ export class CaseController {
 
   // 案例详情
   @Get('detail/:id')
-  findOne(@Param('id') id: string) {
-    return this.caseService.findOne(+id)
+  findOne(@Param('id') id: string, @Query('userId') userId: string) {
+    const currentUserId = userId === undefined ? undefined : +userId
+    return this.caseService.findOne(+id, currentUserId)
   }
 
   // 删除案例

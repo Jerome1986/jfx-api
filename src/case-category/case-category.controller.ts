@@ -1,8 +1,10 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+// 文件说明：案例分类控制器，处理相关 HTTP 请求。
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
 import { CaseCategoryService } from './case-category.service';
 import { CreateCaseCategoryDto } from './dto/create-case-category.dto';
 import { UpdateCaseCategoryDto } from './dto/update-case-category.dto';
 import { UpdateCaseCategoryStatusDto } from './dto/update-case-category-status.dto';
+import { QueryCase } from '../case/dto/query-case.dto';
 
 @Controller('case-category')
 export class CaseCategoryController {
@@ -18,6 +20,15 @@ export class CaseCategoryController {
   @Get()
   findAll() {
     return this.caseCategoryService.findAll();
+  }
+
+  // 根据分类ID获取案例
+  @Get(':id/cases')
+  findCasesByCategoryId(@Param('id') id: string, @Query() query: QueryCase) {
+    const pageNum = Number(query.pageNum) || 1;
+    const pageSize = Number(query.pageSize) || 10;
+
+    return this.caseCategoryService.findCasesByCategoryId(+id, pageNum, pageSize);
   }
 
   // 更新分类

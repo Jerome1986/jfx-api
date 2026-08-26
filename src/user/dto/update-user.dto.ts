@@ -1,3 +1,4 @@
+// 文件说明：用户更新请求的数据传输对象。
 import {
   IsArray,
   IsBoolean,

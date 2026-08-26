@@ -1,3 +1,4 @@
+// 文件说明：统一响应拦截器，规范接口返回结构。
 import {
   CallHandler,
   ExecutionContext,

@@ -1,3 +1,4 @@
+// 文件说明：微信相关接口调用与数据处理工具。
 import axios from 'axios'
 import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common'
 

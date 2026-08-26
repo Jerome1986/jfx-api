@@ -1,3 +1,4 @@
+// 文件说明：地址业务服务，负责业务规则与流程编排。
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { AddressRepository } from './address.repository'
 import { CreateAddressDto } from './dto/create-address.dto'
