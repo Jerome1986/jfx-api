@@ -5,7 +5,7 @@ import { PrismaService } from 'src/prisma/prisma.service'
 export class FavoriteRepository {
   constructor(private prisma: PrismaService) { }
 
-  // 根据用户 ID 和案例 ID 查询收藏记录
+  // 查询用户与案例之间的收藏记录
   findByUserAndCase(userId: number, caseId: number) {
     return this.prisma.favorite.findUnique({
       where: {
@@ -17,7 +17,7 @@ export class FavoriteRepository {
     })
   }
 
-  // 为指定用户新增案例收藏
+  // 新增用户案例收藏记录
   addFavorite(userId: number, caseId: number) {
     return this.prisma.favorite.create({
       data: {
@@ -27,7 +27,7 @@ export class FavoriteRepository {
     })
   }
 
-  // 移除指定用户的案例收藏
+  // 删除用户案例收藏记录
   removeFavorite(userId: number, caseId: number) {
     return this.prisma.favorite.delete({
       where: {
@@ -39,10 +39,12 @@ export class FavoriteRepository {
     })
   }
 
-  // 根据用户ID获取用户案例收藏列表
-  userFavorite(userId: number) {
+  // 查询指定用户的案例收藏及案例详情
+  getUserFavorites(userId: number) {
     return this.prisma.favorite.findMany({
-      where: { userId }
+      where: { userId },
+      include: { case: true },
+      orderBy: { createdAt: 'desc' },
     })
   }
 }

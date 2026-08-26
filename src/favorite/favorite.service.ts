@@ -1,26 +1,29 @@
-import { Injectable } from '@nestjs/common';
-import { CreateFavoriteDto } from './dto/create-favorite.dto';
-import { UpdateFavoriteDto } from './dto/update-favorite.dto';
-import { FavoriteRepository } from './favorite.repository';
+// 文件说明：收藏业务服务，负责案例收藏业务规则与流程编排。
+import { Injectable } from '@nestjs/common'
+import { CreateFavoriteDto } from './dto/create-favorite.dto'
+import { FavoriteRepository } from './favorite.repository'
 
 @Injectable()
 export class FavoriteService {
-  constructor(private readonly favoriteRepo: FavoriteRepository) { }
+  constructor(private readonly favoriteRepo: FavoriteRepository) {}
 
-  //收藏列表新增和移除
+  // 根据当前收藏状态新增或取消案例收藏
   async toggleFavorite(createFavoriteDto: CreateFavoriteDto) {
-    const { userId, caseId } = createFavoriteDto;
+    const { userId, caseId } = createFavoriteDto
     // 1.查找搜索列表
-    const favorite = await this.favoriteRepo.findByUserAndCase(userId, caseId);
-    console.log(favorite)
+    const favorite = await this.favoriteRepo.findByUserAndCase(userId, caseId)
     // 2.存在移除
     if (favorite) {
-      await this.favoriteRepo.removeFavorite(userId, caseId);
-      return { favorited: false };
+      await this.favoriteRepo.removeFavorite(userId, caseId)
+      return { favorited: false }
     }
     // 3.不存在添加收藏
-    const createdFavorite = await this.favoriteRepo.addFavorite(userId, caseId);
-    console.log('添加', createdFavorite)
-    return { favorited: true, favorite: createdFavorite };
+    const createdFavorite = await this.favoriteRepo.addFavorite(userId, caseId)
+    return { favorited: true, favorite: createdFavorite }
+  }
+
+  // 查询指定用户的案例收藏列表
+  getUserFavorites(userId: number) {
+    return this.favoriteRepo.getUserFavorites(userId)
   }
 }
