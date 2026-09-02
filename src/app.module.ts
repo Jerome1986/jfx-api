@@ -18,6 +18,8 @@ import { EmployeeModule } from './employee/employee.module';
 import { ConstructionServiceModule } from './construction-service/construction-service.module';
 import { AppointmentModule } from './appointment/appointment.module';
 import { FavoriteModule } from './favorite/favorite.module';
+import { ServiceOutletModule } from './service-outlet/service-outlet.module';
+import { ServiceCityModule } from './service-city/service-city.module';
 
 @Module({
   imports: [
@@ -39,6 +41,8 @@ import { FavoriteModule } from './favorite/favorite.module';
     ConstructionServiceModule,
     AppointmentModule,
     FavoriteModule,
+    ServiceOutletModule,
+    ServiceCityModule,
   ],
   controllers: [AppController],
   providers: [AppService],

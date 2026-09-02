@@ -1197,42 +1197,67 @@ model UserCoupon {
 
 // ==================== 服务支持与系统 ====================
 
+// 城市表：跟服务网点关联城市
+model ServiceCity {
+  /// 主键 ID
+  id        Int             @id @default(autoincrement())
+  /// 城市名称，如：杭州市
+  name      String          @unique @db.VarChar(50)
+  /// 行政区划代码，由后端根据城市名称生成
+  code      String          @unique @db.VarChar(20)
+  /// 排序值，数值越小越靠前
+  sort      Int             @default(0)
+  /// 是否启用
+  status    Boolean         @default(true)
+  /// 创建时间
+  createdAt DateTime        @default(now()) @map("created_at")
+  /// 更新时间
+  updatedAt DateTime        @updatedAt @map("updated_at")
+  /// 关联服务网点
+  outlets   ServiceOutlet[]
+
+  @@index([status, sort])
+  @@map("service_city")
+}
+
 // 服务网点表：保存线下服务网点、位置和营业信息
 model ServiceOutlet {
   /// 主键 ID
-  id            Int      @id @default(autoincrement())
+  id            Int          @id @default(autoincrement())
   /// 网点名称
   name          String
-  /// 类别列表
-  categories    Json?
   /// 营业时间
-  businessHours String   @map("business_hours")
+  businessHours String       @map("business_hours")
   /// 联系电话
   phone         String?
   /// 省份
   province      String?
-  /// 所在城市
-  city          String   @db.VarChar(100)
+  /// 关联的服务城市ID
+  cityId        Int          @map("city_id")
+  /// 城市名称
+  cityName      String?      @db.VarChar(100)
   /// 区县
   district      String?
   /// 详细地址
   address       String
   /// 纬度
-  latitude      Decimal  @db.Decimal(10, 7)
+  latitude      Decimal?     @db.Decimal(10, 7)
   /// 经度
-  longitude     Decimal  @db.Decimal(10, 7)
+  longitude     Decimal?     @db.Decimal(10, 7)
   /// 封面图片
   cover         String?
   /// 排序值
-  sort          Int      @default(0)
+  sort          Int          @default(0)
   /// 网点是否启用
-  status        Boolean  @default(true)
+  status        Boolean      @default(true)
   /// 创建时间
-  createdAt     DateTime @default(now()) @map("created_at")
+  createdAt     DateTime     @default(now()) @map("created_at")
   /// 更新时间
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+  /// 城市关系
+  serviceCity   ServiceCity? @relation(fields: [cityId], references: [id], onDelete: Restrict)
 
-  @@index([city, status, sort])
+  @@index([cityId, status, sort])
   @@map("service_outlet")
 }
 
