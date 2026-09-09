@@ -3,24 +3,27 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   Param,
   ParseIntPipe,
   Patch,
   Post,
   Query,
   Req,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common'
 import { AppointmentService } from './appointment.service'
 import { CreateFollowUpDto } from './dto/create-follow-up.dto'
 import { CreatePlanAppointmentDto } from './dto/create-plan-appointment.dto'
 import { QueryPlanAppointmentDto } from './dto/query-plan-appointment.dto'
+import { QueryAssignedAppointmentDto } from './dto/query-assigned-appointment.dto'
 import { UserJwtGuard } from './guards/user-jwt.guard'
 import type { AuthenticatedUserRequest } from './guards/user-jwt.guard'
 
 @Controller('appointment')
 export class AppointmentController {
-  constructor(private readonly appointmentService: AppointmentService) {}
+  constructor(private readonly appointmentService: AppointmentService) { }
 
   // 提交焕新方案预约
   @Post('plan')
@@ -55,10 +58,33 @@ export class AppointmentController {
     )
   }
 
-  // 获取焕新方案预约详情
+  // 根据用户 ID 查询对应员工负责的预约列表
+  @Get('assigned')
+  getAssignedAppointments(
+    @Query() query: QueryAssignedAppointmentDto,
+  ) {
+    return this.appointmentService.getAssignedAppointments(
+      query.userId,
+      query.pageNum,
+      query.pageSize,
+      query.type,
+    )
+  }
+
+  // 获取预约详情
   @Get('detail/:id')
-  findOne(@Param('id') id) {
-    return this.appointmentService.findOne(+id)
+  findOne(
+    @Param('id') id,
+    @Headers('authorization') authorization: string
+  ) {
+    console.log('authorization', authorization)
+    // 获取请求的TOKEN
+    const [scheme, token] = authorization?.split(' ') ?? []
+    if (scheme !== 'Bearer' || !token) {
+      throw new UnauthorizedException('请先登录')
+    }
+
+    return this.appointmentService.findOne(+id, token)
   }
 
   // 后台新增预约跟进记录
@@ -74,5 +100,11 @@ export class AppointmentController {
   @Patch(':id/cancel')
   cancelPlanAppointment(@Param('id', ParseIntPipe) id: number) {
     return this.appointmentService.cancelPlanAppointment(id)
+  }
+
+  // 给预约方案分配负责人
+  @Patch(':id/assignee')
+  reassignResponsiblePerson(@Param('id') id: string, @Body('employeeId') employeeId: string) {
+    return this.appointmentService.reassignResponsiblePerson(+id, +employeeId)
   }
 }

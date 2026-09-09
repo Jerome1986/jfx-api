@@ -11,6 +11,7 @@ import { WxUtil } from 'src/utils/wx.util';
 import { JwtService } from '@nestjs/jwt';
 import { QueryUserDto } from './dto/query-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { TestRole } from './user.controller';
 
 @Injectable()
 export class UserService {
@@ -115,5 +116,27 @@ export class UserService {
       throw new NotFoundException('用户不存在')
     }
     return summary
+  }
+
+  // 测试登录接口
+  async testLogin(role: TestRole) {
+    let user: any = {}
+    if (role === 'CUSTOMER') {
+      user = await this.userRepo.testUser()
+    } else if (role === 'EMPLOYEE') {
+      user = await this.userRepo.testEmployee()
+    }
+
+    // 生成 token（带角色）
+    const token = this.jwtService.sign({
+      userId: user.id,
+      role: user.role,
+      type: 'user',
+    })
+
+    return {
+      token,
+      user
+    }
   }
 }

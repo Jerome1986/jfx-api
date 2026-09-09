@@ -57,7 +57,13 @@ export class AppointmentRepository {
         include: {
           case: true,
           user: true,
-          employee: true,
+          employee: {
+            include: {
+              user: {
+                select: { realName: true }
+              }
+            }
+          },
           plan: true,
           followUps: true,
           project: true,
@@ -97,14 +103,96 @@ export class AppointmentRepository {
     ])
   }
 
-  // 获取预约详情
-  findOne(id: number) {
+  findEmployeeByUserId(userId: number) {
+    return this.prisma.employee.findUnique({
+      where: { userId },
+      select: {
+        id: true,
+        status: true,
+        user: { select: { role: true, status: true } },
+      },
+    })
+  }
+
+  // 列表和总数均限定为当前员工负责的预约
+  async getAssignedAppointments(
+    employeeId: number,
+    pageNum: number,
+    pageSize: number,
+    type?: AppointmentType,
+  ) {
+    const where: Prisma.AppointmentWhereInput = {
+      employeeId,
+      ...(type ? { type } : {}),
+    }
+    return Promise.all([
+      this.prisma.appointment.findMany({
+        where,
+        skip: (pageNum - 1) * pageSize,
+        take: pageSize,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        include: {
+          case: true,
+          employee: true,
+          plan: true,
+          followUps: true,
+          project: true,
+        },
+      }),
+      this.prisma.appointment.count({ where }),
+    ])
+  }
+
+  // 获取用户预约详情
+  findOneForCustomer(id: number, userId: number) {
     return this.prisma.appointment.findFirst({
-      where: { id },
+      where: {
+        id,
+        userId,
+      },
       include: {
         case: true,
-        user: true,
-        employee: true,
+        employee: {
+          include: {
+            user: {
+              select: {
+                realName: true,
+              },
+            },
+          },
+        },
+        plan: true,
+        followUps: true,
+        project: true,
+      },
+    })
+  }
+
+  // 获取员工预约详情
+  findOneForEmployee(id: number, employeeId: number) {
+    return this.prisma.appointment.findFirst({
+      where: {
+        id,
+        employeeId,
+      },
+      include: {
+        case: true,
+        user: {
+          select: {
+            id: true,
+            realName: true,
+            mobile: true,
+          },
+        },
+        employee: {
+          include: {
+            user: {
+              select: {
+                realName: true,
+              },
+            },
+          },
+        },
         plan: true,
         followUps: true,
         project: true,
@@ -211,6 +299,26 @@ export class AppointmentRepository {
   findAppointmentByUser(userId: number) {
     return this.prisma.appointment.findMany({
       where: { userId }
+    })
+  }
+
+  // 给预约方案分配负责人
+  reassignResponsiblePerson(id: number, employeeId: number) {
+    return this.prisma.appointment.update({
+      where: { id },
+      data: {
+        employeeId
+      },
+      include: {
+        employee: {
+          select: {
+            employeeNo: true,
+            position: true,
+            department: true,
+            serviceRegions: true
+          }
+        }
+      }
     })
   }
 }

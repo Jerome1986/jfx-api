@@ -15,6 +15,9 @@ import { WxPhoneLoginDto } from './dto/wx-phone-login.dto';
 import { QueryUserDto } from './dto/query-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
+// 测试登录接口参数类型
+export type TestRole = 'CUSTOMER' | 'EMPLOYEE'
+
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) { }
@@ -56,5 +59,12 @@ export class UserController {
   @Get('summary/:userId')
   summary(@Param('userId', ParseIntPipe) userId: number) {
     return this.userService.summary(userId)
+  }
+
+  // 开发测试登录
+
+  @Post('dev-login')
+  testLogin(@Body('role') role: TestRole) {
+    return this.userService.testLogin(role)
   }
 }

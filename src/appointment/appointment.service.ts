@@ -14,10 +14,15 @@ import { CreateFollowUpDto } from './dto/create-follow-up.dto'
 import { CreatePlanAppointmentDto } from './dto/create-plan-appointment.dto'
 import { AppointmentTypeFilter } from './dto/query-plan-appointment.dto'
 import { CreateBudgetAppointmentDto } from './dto/create-budget-appointment.dot'
+import { JwtService } from '@nestjs/jwt'
+import { UserJwtPayload } from './guards/user-jwt.guard'
 
 @Injectable()
 export class AppointmentService {
-  constructor(private readonly appointmentRepo: AppointmentRepository) {}
+  constructor(
+    private readonly appointmentRepo: AppointmentRepository,
+    private readonly jwtService: JwtService
+  ) { }
 
   // 创建焕新方案预约
   async createPlanAppointment(dto: CreatePlanAppointmentDto) {
@@ -135,9 +140,64 @@ export class AppointmentService {
     }
   }
 
-  // 获取焕新方案预约详情
-  findOne(id: number) {
-    return this.appointmentRepo.findOne(id)
+  // 根据用户 ID 确定员工身份，查询其负责的预约
+  async getAssignedAppointments(
+    userId: number,
+    pageNum: number,
+    pageSize: number,
+    type?: AppointmentTypeFilter,
+  ) {
+    const employee = await this.appointmentRepo.findEmployeeByUserId(userId)
+    if (!employee || employee.user.role !== 'EMPLOYEE') {
+      throw new ForbiddenException('仅员工可查询负责的预约')
+    }
+    if (!employee.status || !employee.user.status) {
+      throw new ForbiddenException('员工或用户账号已被禁用')
+    }
+
+    const appointmentType = type && type !== 'ALL' ? type : undefined
+    const [list, total] = await this.appointmentRepo.getAssignedAppointments(
+      employee.id,
+      pageNum,
+      pageSize,
+      appointmentType,
+    )
+    return {
+      list,
+      total,
+      pageNum,
+      pageSize,
+      totalPage: Math.ceil(total / pageSize),
+    }
+  }
+
+  // 获取方案预约详情
+  async findOne(id: number, token: string) {
+    // 1.验证Token
+    const paload = await this.jwtService.verifyAsync<UserJwtPayload>(token)
+    console.log('验证token', paload)
+    let appointment
+    if (paload.role === 'CUSTOMER') {
+      // 普通用户只能查看自己的预约
+      appointment = await this.appointmentRepo.findOneForCustomer(id, paload.userId)
+    } else if (paload.role === 'EMPLOYEE') {
+      // 先找到对应的员工ID Employee.id
+      const employee = await this.appointmentRepo.findEmployeeByUserId(paload.userId)
+      if (!employee || !employee.status || !employee.user.status) {
+        throw new ForbiddenException('员工账号不存在或被禁用')
+      }
+
+      // 员工只能查看分配给自己的预约
+      appointment = await this.appointmentRepo.findOneForEmployee(id, employee?.id)
+    } else {
+      throw new ForbiddenException('无权查看预约详情')
+    }
+
+    if (!appointment) {
+      throw new NotFoundException('预约不存在')
+    }
+
+    return appointment
   }
 
   // 后台新增预约跟进记录
@@ -156,6 +216,8 @@ export class AppointmentService {
         throw new NotFoundException('跟进负责人不存在')
       }
     }
+
+    console.log('跟进参数提交', dto)
 
     return this.appointmentRepo.createFollowUp({
       appointmentId,
@@ -200,5 +262,12 @@ export class AppointmentService {
       ...createBudgetAppointmentDto,
       area: new Decimal(createBudgetAppointmentDto.area),
     })
+  }
+
+  // 给预约方案分配负责人
+  async reassignResponsiblePerson(id: number, employeeId: number) {
+    const res = await this.appointmentRepo.reassignResponsiblePerson(id, employeeId)
+    console.log(res)
+    return res
   }
 }

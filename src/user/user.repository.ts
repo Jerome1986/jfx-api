@@ -223,4 +223,17 @@ export class UserRepository {
       select: safeUserSelect,
     })
   }
+
+  // 前端测试接口-用户端账号
+  testUser() {
+    return this.prisma.user.findFirst({
+      where: { mobile: '15527650094' }
+    })
+  }
+
+  testEmployee() {
+    return this.prisma.user.findFirst({
+      where: { mobile: '17502175260' }
+    })
+  }
 }

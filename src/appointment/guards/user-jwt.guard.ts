@@ -6,10 +6,11 @@ import {
 } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 import { Request } from 'express'
+import { UserRole } from '../../../generated/prisma/enums'
 
 export interface UserJwtPayload {
   userId: number
-  role: string
+  role: UserRole
   type: 'user'
 }
 
@@ -17,7 +18,7 @@ export type AuthenticatedUserRequest = Request & { user: UserJwtPayload }
 
 @Injectable()
 export class UserJwtGuard implements CanActivate {
-  constructor(private readonly jwtService: JwtService) {}
+  constructor(private readonly jwtService: JwtService) { }
 
   async canActivate(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest<AuthenticatedUserRequest>()

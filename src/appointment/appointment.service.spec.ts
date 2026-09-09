@@ -50,6 +50,8 @@ describe('AppointmentService', () => {
       createPlanAppointment: jest.fn(),
       GetPlanAll: jest.fn(),
       getMyAppointments: jest.fn(),
+      findEmployeeByUserId: jest.fn(),
+      getAssignedAppointments: jest.fn(),
       findAppointmentById: jest.fn(),
       findEmployeeById: jest.fn(),
       createFollowUp: jest.fn(),
@@ -59,6 +61,36 @@ describe('AppointmentService', () => {
       createBudgetAppointment: jest.fn(),
     } as unknown as jest.Mocked<AppointmentRepository>
     service = new AppointmentService(repository)
+  })
+
+  it.each(['ALL', 'PLAN', undefined] as const)(
+    '按用户 ID 关联的员工查询预约，类型为 %s',
+    async (type) => {
+      repository.findEmployeeByUserId.mockResolvedValue({
+        id: 99,
+        status: true,
+        user: { role: 'EMPLOYEE', status: true },
+      })
+      repository.getAssignedAppointments.mockResolvedValue([[], 21])
+      await expect(service.getAssignedAppointments(1, 2, 10, type)).resolves.toEqual({
+        list: [], total: 21, pageNum: 2, pageSize: 10, totalPage: 3,
+      })
+      expect(repository.findEmployeeByUserId).toHaveBeenCalledWith(1)
+      expect(repository.getAssignedAppointments).toHaveBeenCalledWith(
+        99, 2, 10, type === 'PLAN' ? 'PLAN' : undefined,
+      )
+    },
+  )
+
+  it.each([
+    null,
+    { id: 99, status: false, user: { role: 'EMPLOYEE' as const, status: true } },
+    { id: 99, status: true, user: { role: 'EMPLOYEE' as const, status: false } },
+    { id: 99, status: true, user: { role: 'CUSTOMER' as const, status: true } },
+  ])('拒绝无有效员工身份的账号查询', async (employee) => {
+    repository.findEmployeeByUserId.mockResolvedValue(employee)
+    await expect(service.getAssignedAppointments(1, 1, 10)).rejects.toThrow(ForbiddenException)
+    expect(repository.getAssignedAppointments).not.toHaveBeenCalled()
   })
 
   it('用户ID为空时提示先登录', async () => {
