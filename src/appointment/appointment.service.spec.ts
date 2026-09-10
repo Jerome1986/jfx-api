@@ -1,11 +1,13 @@
 // 文件说明：预约业务服务的单元测试。
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common'
-import { Decimal } from '@prisma/client/runtime/client'
+import { Decimal, PrismaClientKnownRequestError } from '@prisma/client/runtime/client'
+import { JwtService } from '@nestjs/jwt'
 
 jest.mock('./appointment.repository', () => ({
   AppointmentRepository: class AppointmentRepository {},
@@ -42,8 +44,10 @@ const dto: CreatePlanAppointmentDto = {
 describe('AppointmentService', () => {
   let service: AppointmentService
   let repository: jest.Mocked<AppointmentRepository>
+  const verifyAsync = jest.fn()
 
   beforeEach(() => {
+    verifyAsync.mockReset()
     repository = {
       findUser: jest.fn(),
       findPublishedPlan: jest.fn(),
@@ -59,8 +63,66 @@ describe('AppointmentService', () => {
       cancelPlanAppointment: jest.fn(),
       findBudgetAppointmentByUserId: jest.fn(),
       createBudgetAppointment: jest.fn(),
+      findOneForEmployee: jest.fn(),
+      appointmentConfirmVisit: jest.fn(),
     } as unknown as jest.Mocked<AppointmentRepository>
-    service = new AppointmentService(repository)
+    service = new AppointmentService(repository, { verifyAsync } as unknown as JwtService)
+  })
+
+  describe('确认上门', () => {
+    const visit = { visitDate: '2026-09-10', timeSlot: '09:00-12:00', visitAddress: '测试地址' }
+
+    beforeEach(() => {
+      verifyAsync.mockResolvedValue({ userId: 1, role: 'EMPLOYEE', type: 'user' })
+      repository.findEmployeeByUserId.mockResolvedValue({
+        id: 99, status: true, user: { role: 'EMPLOYEE', status: true },
+      })
+      repository.findOneForEmployee.mockResolvedValue({ status: 'PENDING_CONTACT' } as never)
+    })
+
+    it('使用员工 ID 更新并返回最新预约', async () => {
+      const result = { id: 2, status: 'PENDING_VISIT' }
+      repository.appointmentConfirmVisit.mockResolvedValue(result as never)
+      await expect(service.appointmentConfirmVisit(2, visit, 'token')).resolves.toEqual(result)
+      expect(repository.findOneForEmployee).toHaveBeenCalledWith(2, 99)
+      expect(repository.appointmentConfirmVisit).toHaveBeenCalledWith(2, visit, 99)
+    })
+
+    it('无效 Token 返回 401', async () => {
+      verifyAsync.mockRejectedValue(new Error('expired'))
+      await expect(service.appointmentConfirmVisit(2, visit, 'token')).rejects.toBeInstanceOf(UnauthorizedException)
+      expect(repository.findEmployeeByUserId).not.toHaveBeenCalled()
+    })
+
+    it('非员工返回 403', async () => {
+      verifyAsync.mockResolvedValue({ userId: 1, role: 'CUSTOMER', type: 'user' })
+      await expect(service.appointmentConfirmVisit(2, visit, 'token')).rejects.toBeInstanceOf(ForbiddenException)
+    })
+
+    it('无权访问或不存在的预约返回 404', async () => {
+      repository.findOneForEmployee.mockResolvedValue(null)
+      await expect(service.appointmentConfirmVisit(2, visit, 'token')).rejects.toBeInstanceOf(NotFoundException)
+      expect(repository.appointmentConfirmVisit).not.toHaveBeenCalled()
+    })
+
+    it('状态不允许时返回 409 且不更新', async () => {
+      repository.findOneForEmployee.mockResolvedValue({ status: 'PENDING_VISIT' } as never)
+      await expect(service.appointmentConfirmVisit(2, visit, 'token')).rejects.toBeInstanceOf(ConflictException)
+      expect(repository.appointmentConfirmVisit).not.toHaveBeenCalled()
+    })
+
+    it('并发变更导致条件更新失败时返回 409', async () => {
+      repository.appointmentConfirmVisit.mockRejectedValue(
+        new PrismaClientKnownRequestError('Record not found', { code: 'P2025', clientVersion: '7.9.1' }),
+      )
+      await expect(service.appointmentConfirmVisit(2, visit, 'token')).rejects.toBeInstanceOf(ConflictException)
+    })
+
+    it('其他数据库错误继续抛出', async () => {
+      const error = new Error('database unavailable')
+      repository.appointmentConfirmVisit.mockRejectedValue(error)
+      await expect(service.appointmentConfirmVisit(2, visit, 'token')).rejects.toBe(error)
+    })
   })
 
   it.each(['ALL', 'PLAN', undefined] as const)(

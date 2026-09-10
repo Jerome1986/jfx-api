@@ -1,27 +1,29 @@
 // 文件说明：预约业务服务，负责预约创建流程编排。
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common'
-import { Decimal } from '@prisma/client/runtime/client'
+import { Decimal, PrismaClientKnownRequestError } from '@prisma/client/runtime/client'
 import { randomBytes } from 'node:crypto'
 import { AdminRole, AppointmentType } from '../../generated/prisma/enums'
 import { AppointmentRepository } from './appointment.repository'
 import { CreateFollowUpDto } from './dto/create-follow-up.dto'
 import { CreatePlanAppointmentDto } from './dto/create-plan-appointment.dto'
 import { AppointmentTypeFilter } from './dto/query-plan-appointment.dto'
-import { CreateBudgetAppointmentDto } from './dto/create-budget-appointment.dot'
+import { CreateBudgetAppointmentDto } from './dto/create-budget-appointment.dto'
 import { JwtService } from '@nestjs/jwt'
 import { UserJwtPayload } from './guards/user-jwt.guard'
+import { ConfirmVisitDto } from './dto/confirm-visit-appointment.dto'
 
 @Injectable()
 export class AppointmentService {
   constructor(
     private readonly appointmentRepo: AppointmentRepository,
-    private readonly jwtService: JwtService
+    private readonly jwtService: JwtService,
   ) { }
 
   // 创建焕新方案预约
@@ -278,5 +280,69 @@ export class AppointmentService {
     const res = await this.appointmentRepo.reassignResponsiblePerson(id, employeeId)
     console.log(res)
     return res
+  }
+
+  // 将预约状态转换成待上门
+  async appointmentConfirmVisit(id: number, dto: ConfirmVisitDto, token: string) {
+    // 1. 根据 Token 获取当前员工身份。
+    let payload: UserJwtPayload
+    try {
+      payload = await this.jwtService.verifyAsync<UserJwtPayload>(token)
+    } catch {
+      throw new UnauthorizedException('登录凭证无效或已过期')
+    }
+    if (payload?.type !== 'user' || !Number.isInteger(payload.userId) || payload.userId <= 0) {
+      throw new UnauthorizedException('登录凭证无效')
+    }
+    if (payload.role !== 'EMPLOYEE') throw new ForbiddenException('当前账号没有权限')
+    const employee = await this.appointmentRepo.findEmployeeByUserId(payload.userId)
+    if (!employee?.status || !employee.user.status || employee.user.role !== 'EMPLOYEE') {
+      throw new ForbiddenException('当前员工账号不可用')
+    }
+    // 2. 校验预约是否分配给当前员工。
+    const appointment = await this.appointmentRepo.findOneForEmployee(id, employee.id)
+    if (!appointment) throw new NotFoundException('预约不存在或无权访问')
+    // 3. 校验当前状态必须为 `PENDING_CONTACT`。
+    if (appointment.status !== 'PENDING_CONTACT') {
+      throw new ConflictException('当前预约状态不允许确认上门')
+    }
+    // 4. 原子更新上门信息和状态，写入时再次限制负责人及原状态。
+    try {
+      return await this.appointmentRepo.appointmentConfirmVisit(id, dto, employee.id)
+    } catch (error) {
+      if (error instanceof PrismaClientKnownRequestError && error.code === 'P2025') {
+        throw new ConflictException('预约状态或负责人已变更，请刷新后重试')
+      }
+      throw error
+    }
+  }
+
+  // 完成预约
+  async completeAppointment(id: number, user: UserJwtPayload) {
+    // 1.校验当前员工身份
+    if (user.role !== 'EMPLOYEE') throw new ForbiddenException('当前账号没有权限')
+    const employee = await this.appointmentRepo.findEmployeeByUserId(user.userId)
+    if (!employee?.status || !employee.user.status || employee.user.role !== 'EMPLOYEE') {
+      throw new ForbiddenException('当前员工账号不可用')
+    }
+
+    // 2. 校验预约是否分配给当前员工。
+    const appointment = await this.appointmentRepo.findOneForEmployee(id, employee.id)
+    if (!appointment) throw new NotFoundException('预约不存在或无权访问')
+
+    // 3. 仅允许待上门预约标记为已完成。
+    if (appointment.status !== 'PENDING_VISIT') {
+      throw new ConflictException('当前预约状态不允许完成服务')
+    }
+
+    // 4. 一次更新完成状态和完成时间，写入时再次限制负责人及待上门状态。
+    try {
+      return await this.appointmentRepo.appointmentCompleted(id, employee.id)
+    } catch (error) {
+      if (error instanceof PrismaClientKnownRequestError && error.code === 'P2025') {
+        throw new ConflictException('预约状态或负责人已变更，请刷新后重试')
+      }
+      throw error
+    }
   }
 }

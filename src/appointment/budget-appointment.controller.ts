@@ -1,10 +1,10 @@
 import { Body, Controller, Post } from '@nestjs/common'
 import { AppointmentService } from './appointment.service'
-import { CreateBudgetAppointmentDto } from './dto/create-budget-appointment.dot'
+import { CreateBudgetAppointmentDto } from './dto/create-budget-appointment.dto'
 
 @Controller('appointment/budget')
 export class BudgetAppointmentController {
-  constructor(private readonly appointmentService: AppointmentService) {}
+  constructor(private readonly appointmentService: AppointmentService) { }
 
   // 装修计算器预约提交
   @Post()

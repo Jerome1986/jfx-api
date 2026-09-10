@@ -1,8 +1,9 @@
 // 文件说明：预约数据仓储，封装预约相关数据库访问。
 import { Injectable } from '@nestjs/common'
 import { Prisma } from '../../generated/prisma/client'
-import { AppointmentType } from '../../generated/prisma/enums'
+import { AppointmentStatus, AppointmentType } from '../../generated/prisma/enums'
 import { PrismaService } from '../prisma/prisma.service'
+import { ConfirmVisitDto } from './dto/confirm-visit-appointment.dto'
 
 @Injectable()
 export class AppointmentRepository {
@@ -103,6 +104,7 @@ export class AppointmentRepository {
     ])
   }
 
+  // 根据用户ID查询员工表
   findEmployeeByUserId(userId: number) {
     return this.prisma.employee.findUnique({
       where: { userId },
@@ -156,7 +158,9 @@ export class AppointmentRepository {
           include: {
             user: {
               select: {
+                id: true,
                 realName: true,
+                mobile: true
               },
             },
           },
@@ -288,7 +292,7 @@ export class AppointmentRepository {
     })
   }
 
-  // 将焕新方案预约标记为已取消
+  // 将方案预约标记为已取消
   cancelPlanAppointment(id: number, canceledAt: Date) {
     return this.prisma.appointment.update({
       where: { id },
@@ -356,6 +360,41 @@ export class AppointmentRepository {
           }
         }
       }
+    })
+  }
+
+  //将预约状态转换成待上门
+  appointmentConfirmVisit(id: number, dto: ConfirmVisitDto, employeeId: number, tx?: Prisma.TransactionClient) {
+    const db = tx ?? this.prisma
+
+    return db.appointment.update({
+      where: { id, employeeId, status: AppointmentStatus.PENDING_CONTACT },
+      data: {
+        visitDate: new Date(dto.visitDate),
+        timeSlot: dto.timeSlot,
+        visitAddress: dto.visitAddress,
+        status: AppointmentStatus.PENDING_VISIT,
+      }
+    })
+  }
+
+  // 仅允许当前负责人将待上门预约完成，同时记录服务端完成时间。
+  appointmentCompleted(id: number, employeeId: number) {
+    return this.prisma.appointment.update({
+      where: { id, employeeId, status: AppointmentStatus.PENDING_VISIT },
+      data: {
+        status: AppointmentStatus.COMPLETED,
+        completedAt: new Date(),
+      },
+    })
+  }
+
+  // 更新预约表的状态
+  changeAppointmentStatus(id: number, status: AppointmentStatus, tx?: Prisma.TransactionClient) {
+    const db = tx ?? this.prisma
+    return db.appointment.update({
+      where: { id },
+      data: { status }
     })
   }
 }

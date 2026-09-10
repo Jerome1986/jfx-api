@@ -20,6 +20,7 @@ import { QueryPlanAppointmentDto } from './dto/query-plan-appointment.dto'
 import { QueryAssignedAppointmentDto } from './dto/query-assigned-appointment.dto'
 import { UserJwtGuard } from './guards/user-jwt.guard'
 import type { AuthenticatedUserRequest } from './guards/user-jwt.guard'
+import { ConfirmVisitDto } from './dto/confirm-visit-appointment.dto'
 
 @Controller('appointment')
 export class AppointmentController {
@@ -106,5 +107,28 @@ export class AppointmentController {
   @Patch(':id/assignee')
   reassignResponsiblePerson(@Param('id') id: string, @Body('employeeId') employeeId: string) {
     return this.appointmentService.reassignResponsiblePerson(+id, +employeeId)
+  }
+
+  // 将预约状态转换成待上门
+  @Post(':id/confirm-visit')
+  appointmentConfirmVisit(
+    @Param('id', ParseIntPipe) id: number,
+    @Headers('authorization') authorization: string,
+    @Body() dto: ConfirmVisitDto
+  ) {
+    const [scheme, token] = authorization?.split(' ') ?? []
+    if (scheme !== 'Bearer' || !token) throw new UnauthorizedException('用户未登录')
+
+    return this.appointmentService.appointmentConfirmVisit(+id, dto, token)
+  }
+
+  // 完成预约
+  @Post(':id/complete')
+  @UseGuards(UserJwtGuard)
+  completeAppointment(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() request: AuthenticatedUserRequest,
+  ) {
+    return this.appointmentService.completeAppointment(id, request.user)
   }
 }
