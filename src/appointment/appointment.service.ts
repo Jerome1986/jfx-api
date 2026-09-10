@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common'
 import { Decimal } from '@prisma/client/runtime/client'
 import { randomBytes } from 'node:crypto'
-import { AppointmentType } from '../../generated/prisma/enums'
+import { AdminRole, AppointmentType } from '../../generated/prisma/enums'
 import { AppointmentRepository } from './appointment.repository'
 import { CreateFollowUpDto } from './dto/create-follow-up.dto'
 import { CreatePlanAppointmentDto } from './dto/create-plan-appointment.dto'
@@ -174,21 +174,27 @@ export class AppointmentService {
   // 获取方案预约详情
   async findOne(id: number, token: string) {
     // 1.验证Token
-    const paload = await this.jwtService.verifyAsync<UserJwtPayload>(token)
-    console.log('验证token', paload)
+    const payload = await this.jwtService.verifyAsync<UserJwtPayload>(token)
     let appointment
-    if (paload.role === 'CUSTOMER') {
+    if (payload.role === 'CUSTOMER') {
       // 普通用户只能查看自己的预约
-      appointment = await this.appointmentRepo.findOneForCustomer(id, paload.userId)
-    } else if (paload.role === 'EMPLOYEE') {
+      appointment = await this.appointmentRepo.findOneForCustomer(id, payload.userId)
+    } else if (payload.role === 'EMPLOYEE') {
       // 先找到对应的员工ID Employee.id
-      const employee = await this.appointmentRepo.findEmployeeByUserId(paload.userId)
+      const employee = await this.appointmentRepo.findEmployeeByUserId(payload.userId)
       if (!employee || !employee.status || !employee.user.status) {
         throw new ForbiddenException('员工账号不存在或被禁用')
       }
 
       // 员工只能查看分配给自己的预约
-      appointment = await this.appointmentRepo.findOneForEmployee(id, employee?.id)
+      appointment = await this.appointmentRepo.findOneForEmployee(id, employee.id)
+    } else if (Object.values(AdminRole).includes(payload.role as AdminRole)) {
+      // 所有后台管理员角色均可查看预约详情
+      const admin = await this.appointmentRepo.findEnabledAdminById(payload.userId)
+      if (!admin) {
+        throw new ForbiddenException('管理员账号不存在或被禁用')
+      }
+      appointment = await this.appointmentRepo.findOneForAdmin(id)
     } else {
       throw new ForbiddenException('无权查看预约详情')
     }
@@ -219,12 +225,15 @@ export class AppointmentService {
 
     console.log('跟进参数提交', dto)
 
-    return this.appointmentRepo.createFollowUp({
+    const res = await this.appointmentRepo.createFollowUp({
       appointmentId,
       employeeId: dto.employeeId ?? null,
       content: dto.content,
       nextFollowAt: dto.nextFollowAt ? new Date(dto.nextFollowAt) : null,
     })
+    console.log('跟进记录', res)
+
+    return res
   }
 
   // 取消焕新方案预约

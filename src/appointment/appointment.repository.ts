@@ -200,6 +200,43 @@ export class AppointmentRepository {
     })
   }
 
+  // 查询启用中的后台管理员，避免已停用账号继续使用旧 Token
+  findEnabledAdminById(id: number) {
+    return this.prisma.admin.findFirst({
+      where: { id, status: true },
+      select: { id: true },
+    })
+  }
+
+  // 后台管理员可查看任意预约详情
+  findOneForAdmin(id: number) {
+    return this.prisma.appointment.findUnique({
+      where: { id },
+      include: {
+        case: true,
+        user: {
+          select: {
+            id: true,
+            realName: true,
+            mobile: true,
+          },
+        },
+        employee: {
+          include: {
+            user: {
+              select: {
+                realName: true,
+              },
+            },
+          },
+        },
+        plan: true,
+        followUps: true,
+        project: true,
+      },
+    })
+  }
+
   // 查询待跟进预约是否存在
   findAppointmentById(id: number) {
     return this.prisma.appointment.findUnique({
