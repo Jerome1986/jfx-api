@@ -5,16 +5,10 @@ import {
   UnauthorizedException,
 } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
-import { Request } from 'express'
-import { UserRole } from '../../../generated/prisma/enums'
-
-export interface UserJwtPayload {
-  userId: number
-  role: UserRole
-  type: 'user'
-}
-
-export type AuthenticatedUserRequest = Request & { user: UserJwtPayload }
+import type {
+  AuthenticatedUserRequest,
+  UserJwtPayload,
+} from '../interfaces/user-jwt-payload.interface'
 
 @Injectable()
 export class UserJwtGuard implements CanActivate {
@@ -22,8 +16,7 @@ export class UserJwtGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest<AuthenticatedUserRequest>()
-    const authorization = request.headers.authorization
-    const [scheme, token] = authorization?.split(' ') ?? []
+    const [scheme, token] = request.headers.authorization?.split(' ') ?? []
 
     if (scheme !== 'Bearer' || !token) {
       throw new UnauthorizedException('请先登录')
@@ -31,7 +24,13 @@ export class UserJwtGuard implements CanActivate {
 
     try {
       const payload = await this.jwtService.verifyAsync<UserJwtPayload>(token)
-      if (payload.type !== 'user' || !payload.userId) {
+      console.log('登录凭证', payload)
+
+      if (
+        payload.type !== 'user' ||
+        !Number.isInteger(payload.userId) ||
+        payload.userId <= 0
+      ) {
         throw new UnauthorizedException('登录凭证无效')
       }
       request.user = payload

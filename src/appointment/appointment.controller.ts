@@ -3,23 +3,22 @@ import {
   Body,
   Controller,
   Get,
-  Headers,
   Param,
   ParseIntPipe,
   Patch,
   Post,
   Query,
-  Req,
-  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common'
 import { AppointmentService } from './appointment.service'
 import { CreateFollowUpDto } from './dto/create-follow-up.dto'
 import { CreatePlanAppointmentDto } from './dto/create-plan-appointment.dto'
+import { CompleteAppointmentDto } from './dto/complete-appointment.dto'
 import { QueryPlanAppointmentDto } from './dto/query-plan-appointment.dto'
 import { QueryAssignedAppointmentDto } from './dto/query-assigned-appointment.dto'
-import { UserJwtGuard } from './guards/user-jwt.guard'
-import type { AuthenticatedUserRequest } from './guards/user-jwt.guard'
+import { UserJwtGuard } from '../common/auth/guards/user-jwt.guard'
+import { CurrentUser } from '../common/auth/decorators/current-user.decorator'
+import type { UserJwtPayload } from '../common/auth/interfaces/user-jwt-payload.interface'
 import { ConfirmVisitDto } from './dto/confirm-visit-appointment.dto'
 
 @Controller('appointment')
@@ -34,25 +33,24 @@ export class AppointmentController {
 
   // 获取预约列表，可按预约类型筛选
   @Get()
-  GetPlanAll(@Query() query: QueryPlanAppointmentDto) {
-    const pageNum = Number(query.pageNum) || 1
-    const pageSize = Number(query.pageSize) || 10
-
-    return this.appointmentService.GetPlanAll(pageNum, pageSize, query.type)
+  @UseGuards(UserJwtGuard)
+  GetPlanAll(@Query() query: QueryPlanAppointmentDto, @CurrentUser('user') user: UserJwtPayload) {
+  
+    return this.appointmentService.GetPlanAll(query,user)
   }
 
   // 获取当前登录用户的预约列表
   @Get('mine')
   @UseGuards(UserJwtGuard)
   getMyAppointments(
-    @Req() request: AuthenticatedUserRequest,
+    @CurrentUser() user: UserJwtPayload,
     @Query() query: QueryPlanAppointmentDto,
   ) {
     const pageNum = Number(query.pageNum) || 1
     const pageSize = Number(query.pageSize) || 10
 
     return this.appointmentService.getMyAppointments(
-      request.user.userId,
+      user.userId,
       pageNum,
       pageSize,
       query.type,
@@ -74,18 +72,12 @@ export class AppointmentController {
 
   // 获取预约详情
   @Get('detail/:id')
+  @UseGuards(UserJwtGuard)
   findOne(
-    @Param('id') id,
-    @Headers('authorization') authorization: string
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: UserJwtPayload,
   ) {
-    console.log('authorization', authorization)
-    // 获取请求的TOKEN
-    const [scheme, token] = authorization?.split(' ') ?? []
-    if (scheme !== 'Bearer' || !token) {
-      throw new UnauthorizedException('请先登录')
-    }
-
-    return this.appointmentService.findOne(+id, token)
+    return this.appointmentService.findOne(id, user)
   }
 
   // 后台新增预约跟进记录
@@ -111,15 +103,13 @@ export class AppointmentController {
 
   // 将预约状态转换成待上门
   @Post(':id/confirm-visit')
+  @UseGuards(UserJwtGuard)
   appointmentConfirmVisit(
     @Param('id', ParseIntPipe) id: number,
-    @Headers('authorization') authorization: string,
-    @Body() dto: ConfirmVisitDto
+    @Body() dto: ConfirmVisitDto,
+    @CurrentUser() user: UserJwtPayload,
   ) {
-    const [scheme, token] = authorization?.split(' ') ?? []
-    if (scheme !== 'Bearer' || !token) throw new UnauthorizedException('用户未登录')
-
-    return this.appointmentService.appointmentConfirmVisit(+id, dto, token)
+    return this.appointmentService.appointmentConfirmVisit(id, dto, user)
   }
 
   // 完成预约
@@ -127,8 +117,9 @@ export class AppointmentController {
   @UseGuards(UserJwtGuard)
   completeAppointment(
     @Param('id', ParseIntPipe) id: number,
-    @Req() request: AuthenticatedUserRequest,
+    @CurrentUser() user: UserJwtPayload,
+    @Body() dto: CompleteAppointmentDto = {},
   ) {
-    return this.appointmentService.completeAppointment(id, request.user)
+    return this.appointmentService.completeAppointment(id, user, dto)
   }
 }

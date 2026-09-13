@@ -13,17 +13,17 @@ import { AdminRole, AppointmentType } from '../../generated/prisma/enums'
 import { AppointmentRepository } from './appointment.repository'
 import { CreateFollowUpDto } from './dto/create-follow-up.dto'
 import { CreatePlanAppointmentDto } from './dto/create-plan-appointment.dto'
-import { AppointmentTypeFilter } from './dto/query-plan-appointment.dto'
+import { AppointmentTypeFilter, QueryPlanAppointmentDto } from './dto/query-plan-appointment.dto'
 import { CreateBudgetAppointmentDto } from './dto/create-budget-appointment.dto'
-import { JwtService } from '@nestjs/jwt'
-import { UserJwtPayload } from './guards/user-jwt.guard'
+import type { UserJwtPayload } from '../common/auth/interfaces/user-jwt-payload.interface'
 import { ConfirmVisitDto } from './dto/confirm-visit-appointment.dto'
+import { CompleteAppointmentDto } from './dto/complete-appointment.dto'
+import { toAppointmentResponse } from './appointment-response'
 
 @Injectable()
 export class AppointmentService {
   constructor(
     private readonly appointmentRepo: AppointmentRepository,
-    private readonly jwtService: JwtService,
   ) { }
 
   // 创建焕新方案预约
@@ -96,20 +96,25 @@ export class AppointmentService {
 
   // 获取预约列表；不传类型或传 ALL 时查询全部预约
   async GetPlanAll(
-    pageNum: number,
-    pageSize: number,
-    type?: AppointmentTypeFilter,
+    query: QueryPlanAppointmentDto,
+    user: UserJwtPayload
   ) {
+    const pageNum = Number(query.pageNum) || 1
+    const pageSize = Number(query.pageSize) || 10
+    const userId = user.userId
+    const type = query.type
+
     const appointmentType: AppointmentType | undefined =
       type && type !== 'ALL' ? type : undefined
     const [list, total] = await this.appointmentRepo.GetPlanAll(
+      userId,
       pageNum,
       pageSize,
       appointmentType,
     )
 
     return {
-      list,
+      list: list.map(toAppointmentResponse),
       total,
       pageNum,
       pageSize,
@@ -134,7 +139,7 @@ export class AppointmentService {
     )
 
     return {
-      list,
+      list: list.map(toAppointmentResponse),
       total,
       pageNum,
       pageSize,
@@ -165,7 +170,7 @@ export class AppointmentService {
       appointmentType,
     )
     return {
-      list,
+      list: list.map(toAppointmentResponse),
       total,
       pageNum,
       pageSize,
@@ -174,9 +179,7 @@ export class AppointmentService {
   }
 
   // 获取方案预约详情
-  async findOne(id: number, token: string) {
-    // 1.验证Token
-    const payload = await this.jwtService.verifyAsync<UserJwtPayload>(token)
+  async findOne(id: number, payload: UserJwtPayload) {
     let appointment
     if (payload.role === 'CUSTOMER') {
       // 普通用户只能查看自己的预约
@@ -205,7 +208,7 @@ export class AppointmentService {
       throw new NotFoundException('预约不存在')
     }
 
-    return appointment
+    return toAppointmentResponse(appointment)
   }
 
   // 后台新增预约跟进记录
@@ -266,7 +269,7 @@ export class AppointmentService {
         createBudgetAppointmentDto.userId,
       )
     if (existingAppointment) {
-      throw new BadRequestException('已经预约过了，请耐心等待')
+      throw new BadRequestException('您有待联系或待上门的预算预约，请勿重复提交')
     }
 
     return this.appointmentRepo.createBudgetAppointment({
@@ -283,19 +286,10 @@ export class AppointmentService {
   }
 
   // 将预约状态转换成待上门
-  async appointmentConfirmVisit(id: number, dto: ConfirmVisitDto, token: string) {
-    // 1. 根据 Token 获取当前员工身份。
-    let payload: UserJwtPayload
-    try {
-      payload = await this.jwtService.verifyAsync<UserJwtPayload>(token)
-    } catch {
-      throw new UnauthorizedException('登录凭证无效或已过期')
-    }
-    if (payload?.type !== 'user' || !Number.isInteger(payload.userId) || payload.userId <= 0) {
-      throw new UnauthorizedException('登录凭证无效')
-    }
-    if (payload.role !== 'EMPLOYEE') throw new ForbiddenException('当前账号没有权限')
-    const employee = await this.appointmentRepo.findEmployeeByUserId(payload.userId)
+  async appointmentConfirmVisit(id: number, dto: ConfirmVisitDto, user: UserJwtPayload) {
+    // 1. Guard 已验证 Token，此处只校验员工业务身份。
+    if (user.role !== 'EMPLOYEE') throw new ForbiddenException('当前账号没有权限')
+    const employee = await this.appointmentRepo.findEmployeeByUserId(user.userId)
     if (!employee?.status || !employee.user.status || employee.user.role !== 'EMPLOYEE') {
       throw new ForbiddenException('当前员工账号不可用')
     }
@@ -318,7 +312,7 @@ export class AppointmentService {
   }
 
   // 完成预约
-  async completeAppointment(id: number, user: UserJwtPayload) {
+  async completeAppointment(id: number, user: UserJwtPayload, dto: CompleteAppointmentDto = {}) {
     // 1.校验当前员工身份
     if (user.role !== 'EMPLOYEE') throw new ForbiddenException('当前账号没有权限')
     const employee = await this.appointmentRepo.findEmployeeByUserId(user.userId)
@@ -335,9 +329,21 @@ export class AppointmentService {
       throw new ConflictException('当前预约状态不允许完成服务')
     }
 
-    // 4. 一次更新完成状态和完成时间，写入时再次限制负责人及待上门状态。
+    const isQuote = appointment.type === 'BUDGET' || appointment.type === 'QUOTE'
+    if (isQuote && !dto.estimatedAmount) {
+      throw new BadRequestException('报价类预约必须填写预估金额')
+    }
+    const estimate = isQuote ? {
+      estimatedAmount: new Decimal(dto.estimatedAmount!),
+      estimateDescription: dto.estimateDescription?.trim() || null,
+    } : undefined
+
+    // 4. 同一次条件更新保存预估报价和完成状态，避免部分写入。
     try {
-      return await this.appointmentRepo.appointmentCompleted(id, employee.id)
+      const result = await this.appointmentRepo.appointmentCompleted(
+        id, employee.id, appointment.type, estimate,
+      )
+      return toAppointmentResponse(result)
     } catch (error) {
       if (error instanceof PrismaClientKnownRequestError && error.code === 'P2025') {
         throw new ConflictException('预约状态或负责人已变更，请刷新后重试')

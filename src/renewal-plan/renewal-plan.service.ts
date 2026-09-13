@@ -21,8 +21,24 @@ export class RenewalPlanService {
   }
 
   // 根据 ID 获取焕新方案详情
-  findOne(id: number) {
-    return this.renewalPlanRepo.findOne(id)
+  async findOne(id: number) {
+    const plan = await this.renewalPlanRepo.findOne(id)
+    if (!plan) return plan
+
+    return {
+      ...plan,
+      items: plan.items.map((item) => {
+        if (!item.product) return item
+
+        // 只更新展示信息，方案定价、数量、单位及已保存的历史数据保持独立。
+        return {
+          ...item,
+          name: item.product.name,
+          description: item.product.description,
+          image: item.product.mainImage,
+        }
+      }),
+    }
   }
 
   // 根据 ID 更新焕新方案，并返回方案 ID

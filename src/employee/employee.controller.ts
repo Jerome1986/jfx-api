@@ -1,13 +1,17 @@
 // 文件说明：员工控制器，处理相关 HTTP 请求。
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, Query, UseGuards } from '@nestjs/common';
 import { EmployeeService } from './employee.service';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
 import { QueryEmployeeDto } from './dto/query-employee.dto';
+import { UserJwtGuard } from '../common/auth/guards/user-jwt.guard';
+import { CurrentUser } from '../common/auth/decorators/current-user.decorator';
+import type { UserJwtPayload } from '../common/auth/interfaces/user-jwt-payload.interface';
+import { CreateProjectDto } from './dto/create-project.dto';
 
 @Controller('employee')
 export class EmployeeController {
-  constructor(private readonly employeeService: EmployeeService) {}
+  constructor(private readonly employeeService: EmployeeService) { }
 
   // 新增员工
   @Post()
@@ -19,6 +23,13 @@ export class EmployeeController {
   @Get()
   findAll(@Query() query: QueryEmployeeDto) {
     return this.employeeService.findAll(query);
+  }
+
+  // 当前员工工作概览
+  @Get('summary')
+  @UseGuards(UserJwtGuard)
+  summary(@CurrentUser() user: UserJwtPayload) {
+    return this.employeeService.summary(user);
   }
 
   // 查询员工详情
@@ -37,5 +48,12 @@ export class EmployeeController {
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.employeeService.remove(id);
+  }
+
+  // 员工创建装修项目
+  @Post('projects')
+  @UseGuards(UserJwtGuard)
+  CreateProject(@Body() createProjectDto: CreateProjectDto, @CurrentUser() user: UserJwtPayload) {
+    return this.employeeService.CreateProject(createProjectDto, user)
   }
 }

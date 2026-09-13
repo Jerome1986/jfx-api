@@ -47,8 +47,9 @@ export class AppointmentRepository {
   }
 
   // 查询预约列表；未传预约类型时查询全部
-  async GetPlanAll(pageNum: number, pageSize: number, type?: AppointmentType) {
-    const where: Prisma.AppointmentWhereInput = type ? { type } : {}
+  async GetPlanAll(userId: number, pageNum: number, pageSize: number, type?: AppointmentType) {
+    const where: Prisma.AppointmentWhereInput = { userId }
+    if (type) where.type = type
 
     return await Promise.all([
       this.prisma.appointment.findMany({
@@ -241,6 +242,17 @@ export class AppointmentRepository {
     })
   }
 
+  // 查询预约转项目所需的客户及负责人信息
+  findAppointmentForProject(id: number) {
+    return this.prisma.appointment.findUnique({
+      where: { id },
+      select: {
+        id: true, userId: true, employeeId: true,
+        type: true, status: true, estimatedAmount: true,
+      },
+    })
+  }
+
   // 查询待跟进预约是否存在
   findAppointmentById(id: number) {
     return this.prisma.appointment.findUnique({
@@ -310,12 +322,15 @@ export class AppointmentRepository {
     })
   }
 
-  // 装修计算器提交预约报价
+  // 仅查询尚未结束的预算预约，已完成或已取消后允许再次提交。
   findBudgetAppointmentByUserId(userId: number) {
     return this.prisma.appointment.findFirst({
       where: {
         userId,
         type: 'BUDGET',
+        status: {
+          in: [AppointmentStatus.PENDING_CONTACT, AppointmentStatus.PENDING_VISIT],
+        },
       },
       select: { id: true },
     })
@@ -336,7 +351,7 @@ export class AppointmentRepository {
     return this.prisma.appointment.create({ data })
   }
 
-  // 根据用户ID查询用户预约记录
+  // 根据用户ID查询用户预约订单记录
   findAppointmentByUser(userId: number) {
     return this.prisma.appointment.findMany({
       where: { userId }
@@ -379,12 +394,19 @@ export class AppointmentRepository {
   }
 
   // 仅允许当前负责人将待上门预约完成，同时记录服务端完成时间。
-  appointmentCompleted(id: number, employeeId: number) {
+  appointmentCompleted(
+    id: number,
+    employeeId: number,
+    type: AppointmentType,
+    estimate?: { estimatedAmount: Prisma.Decimal; estimateDescription: string | null },
+  ) {
+    const now = new Date()
     return this.prisma.appointment.update({
-      where: { id, employeeId, status: AppointmentStatus.PENDING_VISIT },
+      where: { id, employeeId, type, status: AppointmentStatus.PENDING_VISIT },
       data: {
         status: AppointmentStatus.COMPLETED,
-        completedAt: new Date(),
+        completedAt: now,
+        ...(estimate ? { ...estimate, estimatedAt: now } : {}),
       },
     })
   }

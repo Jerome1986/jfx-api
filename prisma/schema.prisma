@@ -57,9 +57,10 @@ enum AppointmentStatus {
 
 // 装修项目状态
 enum RenovationProjectStatus {
-  PENDING_CONFIRM // 待确认
-  IN_SERVICE // 服务中
-  COMPLETED // 已完成
+  PENDING_QUOTE // 提交报价 --- 操作人：员工
+  PENDING_CONFIRM // 待确认 --- 操作人：客户
+  IN_SERVICE // 服务中 
+  COMPLETED // 已完成 --- 操作人：员工
   CANCELED // 已取消
 }
 
@@ -761,6 +762,12 @@ model Appointment {
   visitAddress  String?           @map("visit_address")
   /// 预约状态
   status        AppointmentStatus @default(PENDING_CONTACT)
+  /// 上门测量后的参考预估金额，不等于项目实际报价
+  estimatedAmount Decimal? @map("estimated_amount") @db.Decimal(10, 2)
+  /// 预估报价说明
+  estimateDescription String? @map("estimate_description") @db.VarChar(191)
+  /// 预估报价提交时间
+  estimatedAt DateTime? @map("estimated_at")
   /// 完成时间
   completedAt   DateTime?         @map("completed_at")
   /// 取消时间
@@ -827,7 +834,7 @@ model RenovationProject {
   /// 关联预约 ID
   appointmentId  Int?                    @unique @map("appointment_id")
   /// 关联用户 ID
-  userId         Int                     @map("user_id")
+  userId         Int?                    @map("user_id")
   /// 负责员工 ID
   employeeId     Int?                    @map("employee_id")
   /// 关联焕新方案 ID
@@ -856,7 +863,7 @@ model RenovationProject {
   /// 关联来源预约
   appointment Appointment?       @relation(fields: [appointmentId], references: [id])
   /// 关联用户
-  user        User               @relation(fields: [userId], references: [id])
+  user        User?              @relation(fields: [userId], references: [id])
   /// 关联员工档案
   employee    Employee?          @relation(fields: [employeeId], references: [id])
   /// 关联焕新方案

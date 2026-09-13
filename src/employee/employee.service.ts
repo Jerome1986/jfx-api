@@ -1,5 +1,5 @@
 // 文件说明：员工业务服务，负责业务规则与流程编排。
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
 import { EmployeeRepository } from './employee.repository';
@@ -8,12 +8,18 @@ import { QueryEmployeeDto } from './dto/query-employee.dto';
 import { UserRepository } from 'src/user/user.repository';
 import { Prisma } from '../../generated/prisma/browser';
 import { generateRandomCode } from 'src/utils/random.util';
+import type { UserJwtPayload } from '../common/auth/interfaces/user-jwt-payload.interface';
+import { CreateProjectDto } from './dto/create-project.dto';
+import { RenovationProjectRepository } from 'src/renovation-project/renovation-project.repository';
+import { AppointmentRepository } from '../appointment/appointment.repository';
 
 @Injectable()
 export class EmployeeService {
   constructor(
     private readonly employeeRepo: EmployeeRepository,
     private readonly userRepo: UserRepository,
+    private readonly renovationProjectRepo: RenovationProjectRepository,
+    private readonly appointmentRepo: AppointmentRepository,
     private readonly prisma: PrismaService,
   ) { }
 
@@ -87,6 +93,25 @@ export class EmployeeService {
     }
   }
 
+  // 获取当前登录员工负责业务的状态汇总
+  async summary(user: UserJwtPayload) {
+    if (user.role !== 'EMPLOYEE') {
+      throw new ForbiddenException('仅员工可查看工作概览')
+    }
+
+    const employee = await this.employeeRepo.findByUserId(user.userId)
+    if (
+      !employee ||
+      !employee.status ||
+      !employee.user.status ||
+      employee.user.role !== 'EMPLOYEE'
+    ) {
+      throw new ForbiddenException('当前员工账号不可用')
+    }
+
+    return this.employeeRepo.summary(employee.id)
+  }
+
   // 根据员工 ID 查询员工详情
   async findOne(id: number) {
     // 1. 查询员工档案
@@ -134,5 +159,77 @@ export class EmployeeService {
       if (error instanceof NotFoundException) throw error
       throw new BadRequestException('员工删除失败，可能存在关联业务数据')
     }
+  }
+
+  // 员工创建装修项目
+  async CreateProject(createProjectDto: CreateProjectDto, user: UserJwtPayload) {
+    // 1.校验员工身份
+    const employee = await this.employeeRepo.findByUserId(user.userId)
+    if (
+      !employee ||
+      !employee.status ||
+      !employee.user.status ||
+      employee.user.role !== 'EMPLOYEE'
+    ) {
+      throw new ForbiddenException('当前员工账号不可用')
+    }
+
+    // 2. 预约转项目时，以预约的客户归属为准，并先校验预约负责人。
+    const { appointmentId } = createProjectDto
+    let userId = createProjectDto.userId ?? null
+
+    if (appointmentId) {
+      const appointment = await this.appointmentRepo.findAppointmentForProject(appointmentId)
+      if (!appointment) {
+        throw new NotFoundException('预约不存在')
+      }
+      if (appointment.employeeId !== employee.id) {
+        throw new ForbiddenException('无权操作该预约')
+      }
+
+      const project = await this.renovationProjectRepo.getProjectByAppointmentId(appointmentId)
+      if (project) return project
+
+      if (appointment.status !== 'COMPLETED') {
+        throw new BadRequestException('请先完成预约服务再创建装修项目')
+      }
+      if (
+        (appointment.type === 'BUDGET' || appointment.type === 'QUOTE') &&
+        (!appointment.estimatedAmount || !appointment.estimatedAmount.greaterThan(0))
+      ) {
+        throw new BadRequestException('请先提交预约预估报价再创建装修项目')
+      }
+
+      userId = appointment.userId
+    }
+
+    // 3.创建装修项目 + 明细
+    const quotedAmount = createProjectDto.quoteItems.reduce(
+      (sum, item) =>
+        sum.plus(
+          new Prisma.Decimal(item.unitPrice).mul(item.quantity),
+        ),
+      new Prisma.Decimal(0),
+    )
+
+    return this.renovationProjectRepo.createRenovationProject({
+      projectNo: generateRandomCode(),
+      userId,
+      employeeId: employee.id,
+      quotedAmount,
+      appointmentId: createProjectDto.appointmentId,
+      planId: createProjectDto.planId,
+      name: createProjectDto.name,
+      customerName: createProjectDto.customerName,
+      mobile: createProjectDto.mobile,
+      serviceAddress: createProjectDto.serviceAddress,
+      status: 'PENDING_CONFIRM',
+      quoteItems: {
+        create: createProjectDto.quoteItems.map((item, index) => ({
+          ...item,
+          sort: index,
+        })),
+      },
+    })
   }
 }

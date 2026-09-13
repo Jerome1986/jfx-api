@@ -31,7 +31,38 @@ export class EmployeeRepository {
   // 根据用户 ID 查询员工档案，支持传入事务客户端
   findByUserId(userId: number, tx?: Prisma.TransactionClient) {
     const db = tx ?? this.prisma
-    return db.employee.findUnique({ where: { userId } })
+    return db.employee.findUnique({
+      where: { userId },
+      include: {
+        user: { select: { role: true, status: true } },
+      },
+    })
+  }
+
+  // 按当前员工统计预约和装修项目各阶段数量
+  async summary(employeeId: number) {
+    const [pendingContactCount, pendingVisitCount, pendingConfirmCount, inServiceCount] =
+      await Promise.all([
+        this.prisma.appointment.count({
+          where: { employeeId, status: 'PENDING_CONTACT' },
+        }),
+        this.prisma.appointment.count({
+          where: { employeeId, status: 'PENDING_VISIT' },
+        }),
+        this.prisma.renovationProject.count({
+          where: { employeeId, status: 'PENDING_CONFIRM' },
+        }),
+        this.prisma.renovationProject.count({
+          where: { employeeId, status: 'IN_SERVICE' },
+        }),
+      ])
+
+    return {
+      pendingContactCount,
+      pendingVisitCount,
+      pendingConfirmCount,
+      inServiceCount,
+    }
   }
 
   // 创建员工档案，支持传入事务客户端
