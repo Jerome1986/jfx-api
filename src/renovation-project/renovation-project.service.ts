@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateRenovationProjectDto } from './dto/create-renovation-project.dto';
-import { UpdateRenovationProjectDto } from './dto/update-renovation-project.dto';
+import { Prisma } from '../../generated/prisma/client';
 import { RenovationProjectRepository } from './renovation-project.repository';
 import { ProjectStatus, QueryUserRenovationProjectDto } from './dto/query-user-renovation-project.dto';
 import { UserJwtPayload } from 'src/common/auth/interfaces/user-jwt-payload.interface';
@@ -36,12 +36,28 @@ export class RenovationProjectService {
   }
 
   // 查找项目详情
-  findOne(id: number) {
-    return this.renovationProjectRepo.findOne(id)
+  async findOne(id: number, user: UserJwtPayload) {
+    if (!Number.isSafeInteger(id) || id <= 0) {
+      throw new BadRequestException('项目 ID 必须是正整数')
+    }
+    const project = await this.renovationProjectRepo.findOne(id, user.userId)
+    if (!project) throw new NotFoundException('该项目不存在')
+    return project
   }
 
-  update(id: number, updateRenovationProjectDto: UpdateRenovationProjectDto) {
-    return `This action updates a #${id} renovationProject`;
+  // 用户确认报价开始装修服务
+  async confirmProject(id: number, user: UserJwtPayload) {
+    const project = await this.findOne(id, user)
+    if (project.status === 'IN_SERVICE') throw new ConflictException('该项目已确认，请勿重复确认')
+    if (project.status !== 'PENDING_CONFIRM') throw new ConflictException('当前项目状态不允许确认')
+    try {
+      return await this.renovationProjectRepo.confirmProject(id, user.userId, project)
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+        throw new ConflictException('项目状态或报价已变化，请刷新后重新确认')
+      }
+      throw error
+    }
   }
 
   remove(id: number) {

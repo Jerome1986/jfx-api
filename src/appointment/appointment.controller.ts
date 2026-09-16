@@ -13,6 +13,7 @@ import {
 import { AppointmentService } from './appointment.service'
 import { CreateFollowUpDto } from './dto/create-follow-up.dto'
 import { CreatePlanAppointmentDto } from './dto/create-plan-appointment.dto'
+import { CreateCaseAppointmentDto } from './dto/create-case-appointment.dto'
 import { CompleteAppointmentDto } from './dto/complete-appointment.dto'
 import { QueryPlanAppointmentDto } from './dto/query-plan-appointment.dto'
 import { QueryAssignedAppointmentDto } from './dto/query-assigned-appointment.dto'
@@ -20,6 +21,7 @@ import { UserJwtGuard } from '../common/auth/guards/user-jwt.guard'
 import { CurrentUser } from '../common/auth/decorators/current-user.decorator'
 import type { UserJwtPayload } from '../common/auth/interfaces/user-jwt-payload.interface'
 import { ConfirmVisitDto } from './dto/confirm-visit-appointment.dto'
+import { UpdateAppointmentRequirementDto } from './dto/update-appointment-requirement.dto'
 
 @Controller('appointment')
 export class AppointmentController {
@@ -31,12 +33,29 @@ export class AppointmentController {
     return this.appointmentService.createPlanAppointment(dto)
   }
 
+  // 提交装修案例同款报价预约
+  @Post('case')
+  @UseGuards(UserJwtGuard)
+  createCaseAppointment(@Body() dto: CreateCaseAppointmentDto, @CurrentUser() user: UserJwtPayload) {
+    return this.appointmentService.createCaseAppointment(dto, user)
+  }
+
+  // 员工补录预约客户及房屋需求信息
+  @Patch(':id/customer-requirement')
+  @UseGuards(UserJwtGuard)
+  updateRequirement(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateAppointmentRequirementDto,
+    @CurrentUser() user: UserJwtPayload,
+  ) {
+    return this.appointmentService.updateRequirement(id, dto, user)
+  }
+
   // 获取预约列表，可按预约类型筛选
   @Get()
   @UseGuards(UserJwtGuard)
   GetPlanAll(@Query() query: QueryPlanAppointmentDto, @CurrentUser('user') user: UserJwtPayload) {
-  
-    return this.appointmentService.GetPlanAll(query,user)
+    return this.appointmentService.GetPlanAll(query, user)
   }
 
   // 获取当前登录用户的预约列表

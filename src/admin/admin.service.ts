@@ -55,7 +55,8 @@ export class AdminService {
     const token = this.jwtService.sign({
       userId: admin.id,
       username: admin.username,
-      role: admin.role
+      role: admin.role,
+      type: 'admin'
     })
 
     // 3️⃣ 返回数据

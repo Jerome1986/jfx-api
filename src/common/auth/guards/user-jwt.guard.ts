@@ -16,6 +16,8 @@ export class UserJwtGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest<AuthenticatedUserRequest>()
+    console.log('后端', request.headers)
+
     const [scheme, token] = request.headers.authorization?.split(' ') ?? []
 
     if (scheme !== 'Bearer' || !token) {
@@ -27,7 +29,7 @@ export class UserJwtGuard implements CanActivate {
       console.log('登录凭证', payload)
 
       if (
-        payload.type !== 'user' ||
+        (payload.type !== 'user' && payload.type !== 'admin') ||
         !Number.isInteger(payload.userId) ||
         payload.userId <= 0
       ) {

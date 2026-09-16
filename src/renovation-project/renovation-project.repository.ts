@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "src/prisma/prisma.service";
-import { Prisma, RenovationProjectStatus } from "../../generated/prisma/browser";
+import { Prisma } from "../../generated/prisma/client";
 import { ProjectStatus } from "./dto/query-user-renovation-project.dto";
 
 @Injectable()
@@ -17,7 +17,8 @@ export class RenovationProjectRepository {
   // 获取指定用户装修列表
   async findAllByUser(userId: number, status: ProjectStatus, pageNum: number, pageSize: number) {
     let where: any = {
-      userId
+      userId,
+      status: { notIn: ['PENDING_QUOTE'] }
     }
     if (status !== 'ALL') where.status = status
 
@@ -41,10 +42,28 @@ export class RenovationProjectRepository {
   }
 
   // 项目详情
-  findOne(id: number) {
+  findOne(id: number, userId: number) {
     return this.prisma.renovationProject.findFirst({
-      where: { id },
+      where: { id, userId },
       include: { quoteItems: true }
+    })
+  }
+
+  // 用户确认报价开始装修服务
+  confirmProject(id: number, userId: number, project: { updatedAt: Date; quotedAmount: Prisma.Decimal }) {
+    return this.prisma.renovationProject.update({
+      // 条件更新防止读取之后的取消、归属变更或报价修改被覆盖。
+      where: {
+        id,
+        userId,
+        status: 'PENDING_CONFIRM',
+        updatedAt: project.updatedAt,
+        quotedAmount: project.quotedAmount,
+      },
+      data: {
+        status: 'IN_SERVICE',
+        contractAmount: project.quotedAmount,
+      }
     })
   }
 }

@@ -4,6 +4,7 @@ import { Prisma } from '../../generated/prisma/client'
 import { PrismaService } from 'src/prisma/prisma.service'
 import { QueryEmployeeDto } from './dto/query-employee.dto'
 import { UpdateEmployeeDto } from './dto/update-employee.dto'
+import { QueryEmployeeProjectDto } from './dto/query-employee-project.dto'
 
 // 员工接口允许返回的关联用户字段，避免泄露密码等敏感信息
 export const safeEmployeeInclude = {
@@ -65,6 +66,55 @@ export class EmployeeRepository {
     }
   }
 
+  // 按员工和订单状态分页查询装修订单及总数
+  findProjects(employeeId: number, query: QueryEmployeeProjectDto) {
+    const where: Prisma.RenovationProjectWhereInput = {
+      employeeId,
+      ...(query.status === 'ALL' ? {} : { status: query.status }),
+    }
+    return Promise.all([
+      this.prisma.renovationProject.findMany({
+        where,
+        include: {
+          quoteItems: {
+            orderBy: [{ sort: 'asc' }, { id: 'asc' }]
+          },
+          employee: true
+        },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        skip: (query.pageNum - 1) * query.pageSize,
+        take: query.pageSize,
+      }),
+      this.prisma.renovationProject.count({ where }),
+    ])
+  }
+
+  // 按项目 ID 和负责员工查询装修订单及关联详情
+  findProject(id: number, employeeId: number) {
+    return this.prisma.renovationProject.findFirst({
+      where: { id, employeeId },
+      include: {
+        quoteItems: { orderBy: [{ sort: 'asc' }, { id: 'asc' }] },
+        employee: {
+          include: {
+            user: {
+              select: { realName: true }
+            }
+          }
+        },
+        plan: true
+      },
+    })
+  }
+
+  // 将员工负责的服务中项目标记为已完成并记录完成时间
+  completeProject(id: number, employeeId: number) {
+    return this.prisma.renovationProject.update({
+      where: { id, employeeId, status: 'IN_SERVICE' },
+      data: { status: 'COMPLETED', completedAt: new Date() },
+    })
+  }
+
   // 创建员工档案，支持传入事务客户端
   create(data: Prisma.EmployeeUncheckedCreateInput, tx?: Prisma.TransactionClient) {
     const db = tx ?? this.prisma
@@ -84,13 +134,13 @@ export class EmployeeRepository {
       status,
       ...(normalizedKeyword
         ? {
-            OR: [
-              { employeeNo: { contains: normalizedKeyword } },
-              { position: { contains: normalizedKeyword } },
-              { user: { is: { realName: { contains: normalizedKeyword } } } },
-              { user: { is: { mobile: { contains: normalizedKeyword } } } },
-            ],
-          }
+          OR: [
+            { employeeNo: { contains: normalizedKeyword } },
+            { position: { contains: normalizedKeyword } },
+            { user: { is: { realName: { contains: normalizedKeyword } } } },
+            { user: { is: { mobile: { contains: normalizedKeyword } } } },
+          ],
+        }
         : {}),
     }
 

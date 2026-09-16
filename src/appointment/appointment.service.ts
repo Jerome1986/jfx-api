@@ -13,12 +13,14 @@ import { AdminRole, AppointmentType } from '../../generated/prisma/enums'
 import { AppointmentRepository } from './appointment.repository'
 import { CreateFollowUpDto } from './dto/create-follow-up.dto'
 import { CreatePlanAppointmentDto } from './dto/create-plan-appointment.dto'
+import { CreateCaseAppointmentDto } from './dto/create-case-appointment.dto'
 import { AppointmentTypeFilter, QueryPlanAppointmentDto } from './dto/query-plan-appointment.dto'
 import { CreateBudgetAppointmentDto } from './dto/create-budget-appointment.dto'
 import type { UserJwtPayload } from '../common/auth/interfaces/user-jwt-payload.interface'
 import { ConfirmVisitDto } from './dto/confirm-visit-appointment.dto'
 import { CompleteAppointmentDto } from './dto/complete-appointment.dto'
 import { toAppointmentResponse } from './appointment-response'
+import { UpdateAppointmentRequirementDto } from './dto/update-appointment-requirement.dto'
 
 @Injectable()
 export class AppointmentService {
@@ -68,6 +70,59 @@ export class AppointmentService {
     return {
       appointmentId: appointment.id,
       appointmentNo: appointment.appointmentNo,
+    }
+  }
+
+  // 创建案例报价预约，校验用户和案例并避免重复提交
+  async createCaseAppointment(dto: CreateCaseAppointmentDto, payload: UserJwtPayload) {
+    const user = await this.getAvailableUser(payload.userId)
+    const renovationCase = await this.appointmentRepo.findPublishedCase(dto.caseId)
+    if (!renovationCase) throw new NotFoundException('装修案例不存在或已下线')
+
+    try {
+      const appointment = await this.appointmentRepo.createCaseAppointment({
+        appointmentNo: this.generateAppointmentNo(),
+        userId: user.id,
+        caseId: renovationCase.id,
+        mobile: user.mobile,
+      })
+      if (!appointment) throw new ConflictException('您有该案例待联系或待上门的预约，请勿重复提交')
+      return { appointmentId: appointment.id, appointmentNo: appointment.appointmentNo }
+    } catch (error) {
+      if (error instanceof PrismaClientKnownRequestError) {
+        if (error.code === 'P2025') throw new NotFoundException('装修案例不存在或已下线')
+        if (error.code === 'P2034') throw new ConflictException('预约提交冲突，请刷新后重试')
+      }
+      throw error
+    }
+  }
+
+  // 当前员工补录本人负责预约的客户及房屋需求信息
+  async updateRequirement(
+    id: number,
+    dto: UpdateAppointmentRequirementDto,
+    user: UserJwtPayload,
+  ) {
+    if (user.role !== 'EMPLOYEE') throw new ForbiddenException('当前账号没有权限')
+    const employee = await this.appointmentRepo.findEmployeeByUserId(user.userId)
+    if (!employee?.status || !employee.user.status || employee.user.role !== 'EMPLOYEE') {
+      throw new ForbiddenException('当前员工账号不可用')
+    }
+    const entries = Object.entries(dto).filter(([, value]) => value !== undefined)
+    if (!entries.length) throw new BadRequestException('请至少填写一项客户房屋信息')
+
+    const data = {
+      ...dto,
+      area: dto.area === undefined ? undefined : new Decimal(dto.area),
+    }
+    try {
+      const result = await this.appointmentRepo.updateRequirement(id, employee.id, data)
+      return toAppointmentResponse(result)
+    } catch (error) {
+      if (error instanceof PrismaClientKnownRequestError && error.code === 'P2025') {
+        throw new ConflictException('预约状态或负责人已变更，请刷新后重试')
+      }
+      throw error
     }
   }
 
@@ -299,6 +354,19 @@ export class AppointmentService {
     // 3. 校验当前状态必须为 `PENDING_CONTACT`。
     if (appointment.status !== 'PENDING_CONTACT') {
       throw new ConflictException('当前预约状态不允许确认上门')
+    }
+    if (appointment.type === 'CASE') {
+      const required = [
+        appointment.customerName,
+        appointment.houseType,
+        appointment.city,
+        appointment.area,
+        appointment.roomLayout,
+        appointment.demand,
+      ]
+      if (required.some((value) => value === null || value === undefined || String(value).trim() === '')) {
+        throw new BadRequestException('请先补全客户姓名、房屋类型、城市、面积、户型和预约需求')
+      }
     }
     // 4. 原子更新上门信息和状态，写入时再次限制负责人及原状态。
     try {

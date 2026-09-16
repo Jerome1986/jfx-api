@@ -1,17 +1,18 @@
 // 文件说明：员工业务服务，负责业务规则与流程编排。
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
 import { EmployeeRepository } from './employee.repository';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { QueryEmployeeDto } from './dto/query-employee.dto';
 import { UserRepository } from 'src/user/user.repository';
-import { Prisma } from '../../generated/prisma/browser';
+import { Prisma } from '../../generated/prisma/client';
 import { generateRandomCode } from 'src/utils/random.util';
 import type { UserJwtPayload } from '../common/auth/interfaces/user-jwt-payload.interface';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { RenovationProjectRepository } from 'src/renovation-project/renovation-project.repository';
 import { AppointmentRepository } from '../appointment/appointment.repository';
+import { QueryEmployeeProjectDto } from './dto/query-employee-project.dto';
 
 @Injectable()
 export class EmployeeService {
@@ -112,6 +113,56 @@ export class EmployeeService {
     return this.employeeRepo.summary(employee.id)
   }
 
+  // 校验当前用户的员工身份和账号状态，返回员工档案
+  private async requireActiveEmployee(user: UserJwtPayload) {
+    if (user.role !== 'EMPLOYEE') throw new ForbiddenException('仅员工可操作装修订单')
+    const employee = await this.employeeRepo.findByUserId(user.userId)
+    if (!employee || !employee.status || !employee.user.status || employee.user.role !== 'EMPLOYEE') {
+      throw new ForbiddenException('当前员工账号不可用')
+    }
+    return employee
+  }
+
+  // 分页查询当前员工负责的装修订单
+  async findProjects(query: QueryEmployeeProjectDto, user: UserJwtPayload) {
+    const employee = await this.requireActiveEmployee(user)
+    const [list, total] = await this.employeeRepo.findProjects(employee.id, query)
+    return {
+      list,
+      total,
+      pageNum: query.pageNum,
+      pageSize: query.pageSize,
+      totalPage: Math.ceil(total / query.pageSize),
+    }
+  }
+
+  // 校验项目 ID 并查询当前员工负责的装修订单详情
+  async findProject(id: number, user: UserJwtPayload) {
+    if (!Number.isSafeInteger(id) || id <= 0 || id > 2147483647) {
+      throw new BadRequestException('项目 ID 必须是有效的正整数')
+    }
+    const employee = await this.requireActiveEmployee(user)
+    const project = await this.employeeRepo.findProject(id, employee.id)
+    if (!project) throw new NotFoundException('该项目不存在')
+    return project
+  }
+
+  // 校验项目归属和状态后完成装修项目
+  async completeProject(id: number, user: UserJwtPayload) {
+    const project = await this.findProject(id, user)
+    if (project.status === 'COMPLETED') throw new ConflictException('该项目已完成，请勿重复完成')
+    if (project.status !== 'IN_SERVICE') throw new ConflictException('当前项目状态不允许完成')
+    try {
+      // 项目已按当前员工筛选，employeeId 必定存在。
+      return await this.employeeRepo.completeProject(id, project.employeeId!)
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+        throw new ConflictException('项目状态或归属已变化，请刷新后重试')
+      }
+      throw error
+    }
+  }
+
   // 根据员工 ID 查询员工详情
   async findOne(id: number) {
     // 1. 查询员工档案
@@ -174,7 +225,14 @@ export class EmployeeService {
       throw new ForbiddenException('当前员工账号不可用')
     }
 
-    // 2. 预约转项目时，以预约的客户归属为准，并先校验预约负责人。
+    // 2. 创建项目必须关联后台已发布的标准方案。
+    const plan = await this.prisma.renewalPlan.findFirst({
+      where: { id: createProjectDto.planId, status: 'PUBLISHED' },
+      select: { id: true },
+    })
+    if (!plan) throw new BadRequestException('标准方案不存在或尚未发布')
+
+    // 3. 预约转项目时，以预约的客户归属为准，并先校验预约负责人。
     const { appointmentId } = createProjectDto
     let userId = createProjectDto.userId ?? null
 
@@ -203,7 +261,7 @@ export class EmployeeService {
       userId = appointment.userId
     }
 
-    // 3.创建装修项目 + 明细
+    // 4.创建装修项目 + 明细
     const quotedAmount = createProjectDto.quoteItems.reduce(
       (sum, item) =>
         sum.plus(

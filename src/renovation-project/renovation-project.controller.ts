@@ -1,7 +1,6 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, ParseIntPipe, Query } from '@nestjs/common';
 import { RenovationProjectService } from './renovation-project.service';
 import { CreateRenovationProjectDto } from './dto/create-renovation-project.dto';
-import { UpdateRenovationProjectDto } from './dto/update-renovation-project.dto';
 import { UserJwtGuard } from 'src/common/auth/guards/user-jwt.guard';
 import { QueryUserRenovationProjectDto } from './dto/query-user-renovation-project.dto';
 import { CurrentUser } from 'src/common/auth/decorators/current-user.decorator';
@@ -28,13 +27,16 @@ export class RenovationProjectController {
 
   // 查找项目详情
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.renovationProjectService.findOne(+id);
+  @UseGuards(UserJwtGuard)
+  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: UserJwtPayload) {
+    return this.renovationProjectService.findOne(id, user);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateRenovationProjectDto: UpdateRenovationProjectDto) {
-    return this.renovationProjectService.update(+id, updateRenovationProjectDto);
+  // 用户确认报价开始装修服务
+  @Patch(':id/confirm')
+  @UseGuards(UserJwtGuard)
+  confirmProject(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: UserJwtPayload) {
+    return this.renovationProjectService.confirmProject(id, user)
   }
 
   @Delete(':id')

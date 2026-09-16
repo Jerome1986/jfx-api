@@ -200,7 +200,7 @@ describe('预约预估报价', () => {
       {} as never,
       projectRepo as never,
       appointmentRepo as never,
-      {} as never,
+      { renewalPlan: { findFirst: jest.fn().mockResolvedValue({ id: 3 }) } } as never,
     )
     const dto = {
       appointmentId: 1,
@@ -208,6 +208,7 @@ describe('预约预估报价', () => {
       customerName: '张先生',
       mobile: '13800000000',
       serviceAddress: '武汉',
+      planId: 3,
       quoteItems: [
         {
           name: '水龙头',

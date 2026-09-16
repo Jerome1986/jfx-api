@@ -86,10 +86,9 @@ export class CreateProjectDto {
   @MaxLength(191, { message: '服务地址不能超过191个字符' })
   serviceAddress: string
 
-  @IsOptional()
   @IsInt({ message: '方案ID必须是整数' })
   @Min(1, { message: '方案ID必须大于0' })
-  planId?: number | null
+  planId: number
 
   @IsString({ message: '装修项目名称必须是字符串' })
   @IsNotEmpty({ message: '装修项目名称不能为空' })

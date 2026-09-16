@@ -4,6 +4,7 @@ import { Prisma } from '../../generated/prisma/client'
 import { AppointmentStatus, AppointmentType } from '../../generated/prisma/enums'
 import { PrismaService } from '../prisma/prisma.service'
 import { ConfirmVisitDto } from './dto/confirm-visit-appointment.dto'
+import { UpdateAppointmentRequirementDto } from './dto/update-appointment-requirement.dto'
 
 @Injectable()
 export class AppointmentRepository {
@@ -15,6 +16,39 @@ export class AppointmentRepository {
       where: { id },
       select: { id: true, mobile: true, status: true },
     })
+  }
+
+  // 查询可预约报价的已发布装修案例
+  findPublishedCase(id: number) {
+    return this.prisma.renovationCase.findFirst({
+      where: { id, status: 'PUBLISHED' },
+      select: { id: true },
+    })
+  }
+
+  // 在事务中检查重复案例预约、累计咨询次数并创建预约
+  createCaseAppointment(data: { appointmentNo: string; userId: number; caseId: number; mobile: string }) {
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.appointment.findFirst({
+        where: {
+          userId: data.userId,
+          caseId: data.caseId,
+          type: 'CASE',
+          status: { in: ['PENDING_CONTACT', 'PENDING_VISIT'] },
+        },
+        select: { id: true },
+      })
+      if (existing) return null
+
+      await tx.renovationCase.update({
+        where: { id: data.caseId, status: 'PUBLISHED' },
+        data: { quoteCount: { increment: 1 } },
+      })
+      return tx.appointment.create({
+        data: { ...data, type: 'CASE', source: '装修案例', status: 'PENDING_CONTACT' },
+        select: { id: true, appointmentNo: true },
+      })
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
   }
 
   // 查询已发布方案的预约所需信息
@@ -70,6 +104,7 @@ export class AppointmentRepository {
           followUps: true,
           project: true,
         },
+        orderBy: { updatedAt: 'desc' }
       }),
       this.prisma.appointment.count({ where }),
     ])
@@ -390,6 +425,30 @@ export class AppointmentRepository {
         visitAddress: dto.visitAddress,
         status: AppointmentStatus.PENDING_VISIT,
       }
+    })
+  }
+
+  // 当前负责人补录尚未结束预约的客户及房屋需求信息
+  updateRequirement(
+    id: number,
+    employeeId: number,
+    data: Omit<UpdateAppointmentRequirementDto, 'area'> & { area?: Prisma.Decimal },
+  ) {
+    return this.prisma.appointment.update({
+      where: {
+        id,
+        employeeId,
+        status: { in: [AppointmentStatus.PENDING_CONTACT, AppointmentStatus.PENDING_VISIT] },
+      },
+      data,
+      include: {
+        case: true,
+        user: true,
+        employee: { include: { user: { select: { realName: true, mobile: true } } } },
+        plan: true,
+        followUps: true,
+        project: true,
+      },
     })
   }
 

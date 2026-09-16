@@ -8,6 +8,7 @@ import { UserJwtGuard } from '../common/auth/guards/user-jwt.guard';
 import { CurrentUser } from '../common/auth/decorators/current-user.decorator';
 import type { UserJwtPayload } from '../common/auth/interfaces/user-jwt-payload.interface';
 import { CreateProjectDto } from './dto/create-project.dto';
+import { QueryEmployeeProjectDto } from './dto/query-employee-project.dto';
 
 @Controller('employee')
 export class EmployeeController {
@@ -30,6 +31,27 @@ export class EmployeeController {
   @UseGuards(UserJwtGuard)
   summary(@CurrentUser() user: UserJwtPayload) {
     return this.employeeService.summary(user);
+  }
+
+  // 当前员工负责的装修订单，静态路由放在 :id 之前。
+  @Get('projects')
+  @UseGuards(UserJwtGuard)
+  findProjects(@Query() query: QueryEmployeeProjectDto, @CurrentUser() user: UserJwtPayload) {
+    return this.employeeService.findProjects(query, user);
+  }
+
+  // 查询当前员工负责的装修订单详情
+  @Get('projects/:id')
+  @UseGuards(UserJwtGuard)
+  findProject(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: UserJwtPayload) {
+    return this.employeeService.findProject(id, user);
+  }
+
+  // 员工完成负责的装修项目
+  @Patch('projects/:id/complete')
+  @UseGuards(UserJwtGuard)
+  completeProject(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: UserJwtPayload) {
+    return this.employeeService.completeProject(id, user);
   }
 
   // 查询员工详情
