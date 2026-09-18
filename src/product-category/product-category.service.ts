@@ -6,14 +6,14 @@ import { ProductCategoryRepository } from './product-category.repository'
 
 @Injectable()
 export class ProductCategoryService {
-  constructor(private productCategoryRepo: ProductCategoryRepository) {}
+  constructor(private productCategoryRepo: ProductCategoryRepository) { }
 
   create(createProductCategoryDto: CreateProductCategoryDto) {
     return this.productCategoryRepo.create(createProductCategoryDto)
   }
 
-  findAll() {
-    return this.productCategoryRepo.findAll()
+  findAll(sourceClient: string) {
+    return this.productCategoryRepo.findAll(sourceClient)
   }
 
   findOne(id: number) {

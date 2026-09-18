@@ -10,6 +10,8 @@ import { Prisma } from '../../generated/prisma/client';
 import { generateRandomCode } from 'src/utils/random.util';
 import type { UserJwtPayload } from '../common/auth/interfaces/user-jwt-payload.interface';
 import { CreateProjectDto } from './dto/create-project.dto';
+import { UpdateProjectQuoteDto } from './dto/update-project-quote.dto';
+import { CancelProjectDto } from './dto/cancel-project.dto';
 import { RenovationProjectRepository } from 'src/renovation-project/renovation-project.repository';
 import { AppointmentRepository } from '../appointment/appointment.repository';
 import { QueryEmployeeProjectDto } from './dto/query-employee-project.dto';
@@ -147,6 +149,21 @@ export class EmployeeService {
     return project
   }
 
+  async cancelProject(id: number, dto: CancelProjectDto, user: UserJwtPayload) {
+    const project = await this.findProject(id, user)
+    if (!['PENDING_CONFIRM', 'IN_SERVICE'].includes(project.status) || project.status !== dto.expectedStatus) {
+      throw new ConflictException('项目状态已变化，请刷新后重试')
+    }
+    try {
+      return await this.employeeRepo.cancelProject(id, project.employeeId!, dto)
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && ['P2025', 'P2034'].includes(error.code)) {
+        throw new ConflictException('项目状态或归属已变化，请刷新后重试')
+      }
+      throw error
+    }
+  }
+
   // 校验项目归属和状态后完成装修项目
   async completeProject(id: number, user: UserJwtPayload) {
     const project = await this.findProject(id, user)
@@ -158,6 +175,45 @@ export class EmployeeService {
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
         throw new ConflictException('项目状态或归属已变化，请刷新后重试')
+      }
+      throw error
+    }
+  }
+
+  // 先锁定项目版本，再替换明细；任一步失败时整笔事务回滚。
+  async updateProjectQuote(id: number, dto: UpdateProjectQuoteDto, user: UserJwtPayload) {
+    const project = await this.findProject(id, user)
+    if (project.status !== 'PENDING_CONFIRM' || project.quoteVersion !== dto.quoteVersion) {
+      throw new ConflictException('项目状态或报价已变化，请刷新后重试')
+    }
+    if (!dto.quoteItems?.length) throw new BadRequestException('请至少填写一项报价明细')
+    const quotedAmount = dto.quoteItems.reduce(
+      (sum, item) => sum.plus(new Prisma.Decimal(item.unitPrice).mul(item.quantity)),
+      new Prisma.Decimal(0),
+    ).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP)
+    if (quotedAmount.greaterThan('99999999.99')) throw new BadRequestException('报价总额超出允许范围')
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const plan = await tx.renewalPlan.findFirst({ where: { id: dto.planId, status: 'PUBLISHED' }, select: { id: true } })
+        if (!plan) throw new BadRequestException('标准方案不存在或尚未发布')
+        const productIds = [...new Set(dto.quoteItems.flatMap(item => item.productId == null ? [] : [item.productId]))]
+        if (productIds.length && await tx.product.count({ where: { id: { in: productIds } } }) !== productIds.length) {
+          throw new BadRequestException('报价明细包含不存在的商品')
+        }
+        await tx.renovationProject.update({
+          where: { id, employeeId: project.employeeId!, status: 'PENDING_CONFIRM', quoteVersion: dto.quoteVersion },
+          data: { planId: dto.planId, quotedAmount, quoteVersion: { increment: 1 }, quoteRemark: dto.quoteRemark?.trim() || null, updatedAt: new Date() },
+        })
+        await tx.projectQuoteItem.deleteMany({ where: { projectId: id } })
+        await tx.projectQuoteItem.createMany({ data: dto.quoteItems.map((item, sort) => ({
+          projectId: id, sort, productId: item.productId, category: item.category, name: item.name,
+          description: item.description, image: item.image, unit: item.unit, unitPrice: item.unitPrice, quantity: item.quantity,
+        })) })
+        return tx.renovationProject.findUniqueOrThrow({ where: { id }, include: { plan: true, quoteItems: { orderBy: [{ sort: 'asc' }, { id: 'asc' }] } } })
+      })
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && ['P2025', 'P2034'].includes(error.code)) {
+        throw new ConflictException('项目状态或报价已变化，请刷新后重试')
       }
       throw error
     }

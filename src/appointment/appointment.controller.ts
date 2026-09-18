@@ -86,6 +86,7 @@ export class AppointmentController {
       query.pageNum,
       query.pageSize,
       query.type,
+      query.status,
     )
   }
 
@@ -108,10 +109,10 @@ export class AppointmentController {
     return this.appointmentService.createFollowUp(id, dto)
   }
 
-  // 取消焕新方案预约
+  // 共用取消接口：预算、案例和焕新方案预约。
   @Patch(':id/cancel')
-  cancelPlanAppointment(@Param('id', ParseIntPipe) id: number) {
-    return this.appointmentService.cancelPlanAppointment(id)
+  cancelAppointment(@Param('id', ParseIntPipe) id: number) {
+    return this.appointmentService.cancelAppointment(id)
   }
 
   // 给预约方案分配负责人

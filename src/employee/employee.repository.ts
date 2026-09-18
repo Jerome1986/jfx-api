@@ -5,6 +5,13 @@ import { PrismaService } from 'src/prisma/prisma.service'
 import { QueryEmployeeDto } from './dto/query-employee.dto'
 import { UpdateEmployeeDto } from './dto/update-employee.dto'
 import { QueryEmployeeProjectDto } from './dto/query-employee-project.dto'
+import { CancelProjectDto } from './dto/cancel-project.dto'
+
+export const employeeProjectDetailInclude = {
+  quoteItems: { orderBy: [{ sort: 'asc' }, { id: 'asc' }] },
+  employee: { include: { user: { select: { realName: true } } } },
+  plan: true,
+} satisfies Prisma.RenovationProjectInclude
 
 // 员工接口允许返回的关联用户字段，避免泄露密码等敏感信息
 export const safeEmployeeInclude = {
@@ -93,17 +100,19 @@ export class EmployeeRepository {
   findProject(id: number, employeeId: number) {
     return this.prisma.renovationProject.findFirst({
       where: { id, employeeId },
-      include: {
-        quoteItems: { orderBy: [{ sort: 'asc' }, { id: 'asc' }] },
-        employee: {
-          include: {
-            user: {
-              select: { realName: true }
-            }
-          }
-        },
-        plan: true
+      include: employeeProjectDetailInclude,
+    })
+  }
+
+  // 条件更新与确认、完工竞争同一项目，保留所有报价及来源数据。
+  cancelProject(id: number, employeeId: number, dto: CancelProjectDto) {
+    return this.prisma.renovationProject.update({
+      where: { id, employeeId, status: dto.expectedStatus },
+      data: {
+        status: 'CANCELED', cancelReason: dto.reason.trim(),
+        canceledAt: new Date(), canceledByEmployeeId: employeeId,
       },
+      include: employeeProjectDetailInclude,
     })
   }
 

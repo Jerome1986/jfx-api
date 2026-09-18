@@ -13,6 +13,15 @@
 
 不同条件之间为 AND，关键词的四个字段之间为 OR。非法参数返回 400。
 
+## 按分类查询商品
+
+`GET /api/product/category/12?isPublished=true&pageNum=1&pageSize=10`
+
+路径中的分类 ID 必须为正整数，精确匹配商品所属分类，不包含子分类商品。
+支持上述筛选和分页参数，分类以路径中的 ID 为准。返回结构与商品列表一致；
+不传分页参数时返回数组，传任一分页参数时返回分页对象。分类不存在或没有商品时返回空列表。
+不传 `isPublished` 时仍包含全部上下架状态。
+
 ## 后台管理与旧调用方
 
 `GET /product?keyword=空调&categoryId=12&isPublished=false`

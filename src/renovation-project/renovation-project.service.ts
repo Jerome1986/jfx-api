@@ -4,6 +4,7 @@ import { Prisma } from '../../generated/prisma/client';
 import { RenovationProjectRepository } from './renovation-project.repository';
 import { ProjectStatus, QueryUserRenovationProjectDto } from './dto/query-user-renovation-project.dto';
 import { UserJwtPayload } from 'src/common/auth/interfaces/user-jwt-payload.interface';
+import { ConfirmProjectDto } from './dto/confirm-project.dto';
 
 @Injectable()
 export class RenovationProjectService {
@@ -46,14 +47,15 @@ export class RenovationProjectService {
   }
 
   // 用户确认报价开始装修服务
-  async confirmProject(id: number, user: UserJwtPayload) {
+  async confirmProject(id: number, user: UserJwtPayload, dto: ConfirmProjectDto) {
     const project = await this.findOne(id, user)
     if (project.status === 'IN_SERVICE') throw new ConflictException('该项目已确认，请勿重复确认')
     if (project.status !== 'PENDING_CONFIRM') throw new ConflictException('当前项目状态不允许确认')
+    if (project.quoteVersion !== dto.quoteVersion) throw new ConflictException('报价已更新，请刷新后重新确认')
     try {
       return await this.renovationProjectRepo.confirmProject(id, user.userId, project)
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && ['P2025', 'P2034'].includes(error.code)) {
         throw new ConflictException('项目状态或报价已变化，请刷新后重新确认')
       }
       throw error

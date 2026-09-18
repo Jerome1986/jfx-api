@@ -152,16 +152,27 @@ export class AppointmentRepository {
     })
   }
 
+  // 顶部统计只限定员工和类型，不使用列表的状态或分页条件。
+  countAssignedAppointmentsByStatus(employeeId: number, type?: AppointmentType) {
+    return this.prisma.appointment.groupBy({
+      by: ['status'],
+      where: { employeeId, ...(type ? { type } : {}) },
+      _count: { _all: true },
+    })
+  }
+
   // 列表和总数均限定为当前员工负责的预约
   async getAssignedAppointments(
     employeeId: number,
     pageNum: number,
     pageSize: number,
     type?: AppointmentType,
+    status?: AppointmentStatus,
   ) {
     const where: Prisma.AppointmentWhereInput = {
       employeeId,
       ...(type ? { type } : {}),
+      ...(status ? { status } : {}),
     }
     return Promise.all([
       this.prisma.appointment.findMany({
@@ -339,10 +350,10 @@ export class AppointmentRepository {
     })
   }
 
-  // 将方案预约标记为已取消
-  cancelPlanAppointment(id: number, canceledAt: Date) {
+  // 仅将待联系或待上门的预约标记为已取消。
+  cancelAppointment(id: number, canceledAt: Date) {
     return this.prisma.appointment.update({
-      where: { id },
+      where: { id, status: { in: ['PENDING_CONTACT', 'PENDING_VISIT'] } },
       data: {
         status: 'CANCELED',
         canceledAt,

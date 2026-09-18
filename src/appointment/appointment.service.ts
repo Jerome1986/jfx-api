@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common'
 import { Decimal, PrismaClientKnownRequestError } from '@prisma/client/runtime/client'
 import { randomBytes } from 'node:crypto'
-import { AdminRole, AppointmentType } from '../../generated/prisma/enums'
+import { AdminRole, AppointmentStatus, AppointmentType } from '../../generated/prisma/enums'
 import { AppointmentRepository } from './appointment.repository'
 import { CreateFollowUpDto } from './dto/create-follow-up.dto'
 import { CreatePlanAppointmentDto } from './dto/create-plan-appointment.dto'
@@ -208,6 +208,7 @@ export class AppointmentService {
     pageNum: number,
     pageSize: number,
     type?: AppointmentTypeFilter,
+    status?: AppointmentStatus | 'ALL',
   ) {
     const employee = await this.appointmentRepo.findEmployeeByUserId(userId)
     if (!employee || employee.user.role !== 'EMPLOYEE') {
@@ -218,14 +219,21 @@ export class AppointmentService {
     }
 
     const appointmentType = type && type !== 'ALL' ? type : undefined
-    const [list, total] = await this.appointmentRepo.getAssignedAppointments(
+    const [[list, total], counts] = await Promise.all([
+      this.appointmentRepo.getAssignedAppointments(
       employee.id,
       pageNum,
       pageSize,
       appointmentType,
-    )
+      status && status !== 'ALL' ? status : undefined,
+      ),
+      this.appointmentRepo.countAssignedAppointmentsByStatus(employee.id, appointmentType),
+    ])
+    const statusCounts = { PENDING_CONTACT: 0, PENDING_VISIT: 0, COMPLETED: 0, CANCELED: 0 }
+    for (const row of counts) statusCounts[row.status] = row._count._all
     return {
       list: list.map(toAppointmentResponse),
+      statusCounts,
       total,
       pageNum,
       pageSize,
@@ -296,14 +304,14 @@ export class AppointmentService {
     return res
   }
 
-  // 取消焕新方案预约
-  async cancelPlanAppointment(id: number) {
+  // 共用取消接口：预算、案例和焕新方案预约。
+  async cancelAppointment(id: number) {
     const appointment = await this.appointmentRepo.findAppointmentForCancel(id)
     if (!appointment) {
       throw new NotFoundException('预约不存在')
     }
-    if (appointment.type !== 'PLAN') {
-      throw new BadRequestException('该预约不是焕新方案预约')
+    if (!['PLAN', 'BUDGET', 'CASE'].includes(appointment.type)) {
+      throw new BadRequestException('当前预约类型不支持取消')
     }
     if (appointment.status === 'COMPLETED') {
       throw new BadRequestException('已完成的预约不能取消')
@@ -312,7 +320,14 @@ export class AppointmentService {
       return appointment
     }
 
-    return this.appointmentRepo.cancelPlanAppointment(id, new Date())
+    try {
+      return await this.appointmentRepo.cancelAppointment(id, new Date())
+    } catch (error) {
+      if (error instanceof PrismaClientKnownRequestError && error.code === 'P2025') {
+        throw new ConflictException('预约状态已变化，请刷新后重试')
+      }
+      throw error
+    }
   }
 
   // 装修计算器预约提交

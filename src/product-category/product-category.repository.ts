@@ -6,7 +6,7 @@ import { UpdateProductCategoryDto } from './dto/update-product-category.dto'
 
 @Injectable()
 export class ProductCategoryRepository {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   create(createProductCategoryDto: CreateProductCategoryDto) {
     return this.prisma.productCategory.create({
@@ -14,9 +14,14 @@ export class ProductCategoryRepository {
     })
   }
 
-  findAll() {
+  findAll(sourceClient: string) {
+    // 如果是小程序的请求，那么只返回启用的分类
+    let where: any = { parentId: null }
+    if (sourceClient === 'minimap') {
+      where.isEnabled = true
+    }
     return this.prisma.productCategory.findMany({
-      where: { parentId: null },
+      where,
       include: {
         children: {
           orderBy: { sort: 'asc' },

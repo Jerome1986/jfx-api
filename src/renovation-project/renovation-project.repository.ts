@@ -25,7 +25,7 @@ export class RenovationProjectRepository {
     return await Promise.all([
       this.prisma.renovationProject.findMany({
         where,
-        include: { quoteItems: true },
+        include: { plan: true, quoteItems: { orderBy: [{ sort: 'asc' }, { id: 'asc' }] } },
         skip: (pageNum - 1) * pageSize,
         take: pageSize,
         orderBy: { createdAt: 'desc' }
@@ -45,18 +45,19 @@ export class RenovationProjectRepository {
   findOne(id: number, userId: number) {
     return this.prisma.renovationProject.findFirst({
       where: { id, userId },
-      include: { quoteItems: true }
+      include: { plan: true, quoteItems: { orderBy: [{ sort: 'asc' }, { id: 'asc' }] } }
     })
   }
 
   // 用户确认报价开始装修服务
-  confirmProject(id: number, userId: number, project: { updatedAt: Date; quotedAmount: Prisma.Decimal }) {
+  confirmProject(id: number, userId: number, project: { updatedAt: Date; quotedAmount: Prisma.Decimal; quoteVersion: number }) {
     return this.prisma.renovationProject.update({
       // 条件更新防止读取之后的取消、归属变更或报价修改被覆盖。
       where: {
         id,
         userId,
         status: 'PENDING_CONFIRM',
+        quoteVersion: project.quoteVersion,
         updatedAt: project.updatedAt,
         quotedAmount: project.quotedAmount,
       },

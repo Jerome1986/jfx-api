@@ -1,5 +1,5 @@
 // 文件说明：产品分类控制器，处理相关 HTTP 请求。
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common'
+import { Body, Controller, Delete, Get, Headers, Param, Patch, Post, Req } from '@nestjs/common'
 import { CreateProductCategoryDto } from './dto/create-product-category.dto'
 import { UpdateProductCategoryStatusDto } from './dto/update-product-category-status.dto'
 import { UpdateProductCategoryDto } from './dto/update-product-category.dto'
@@ -7,7 +7,7 @@ import { ProductCategoryService } from './product-category.service'
 
 @Controller('product-category')
 export class ProductCategoryController {
-  constructor(private readonly productCategoryService: ProductCategoryService) {}
+  constructor(private readonly productCategoryService: ProductCategoryService) { }
 
   // 新增分类
   @Post('add')
@@ -17,8 +17,9 @@ export class ProductCategoryController {
 
   // 获取分类树
   @Get()
-  findAll() {
-    return this.productCategoryService.findAll()
+  findAll(@Headers('source-client') sourceClient: string) {
+    console.log('sourceClient', sourceClient)
+    return this.productCategoryService.findAll(sourceClient)
   }
 
   // 获取分类详情

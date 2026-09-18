@@ -5,6 +5,7 @@ import { UserJwtGuard } from 'src/common/auth/guards/user-jwt.guard';
 import { QueryUserRenovationProjectDto } from './dto/query-user-renovation-project.dto';
 import { CurrentUser } from 'src/common/auth/decorators/current-user.decorator';
 import type { UserJwtPayload } from 'src/common/auth/interfaces/user-jwt-payload.interface';
+import { ConfirmProjectDto } from './dto/confirm-project.dto';
 
 @Controller('renovation-project')
 export class RenovationProjectController {
@@ -35,8 +36,8 @@ export class RenovationProjectController {
   // 用户确认报价开始装修服务
   @Patch(':id/confirm')
   @UseGuards(UserJwtGuard)
-  confirmProject(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: UserJwtPayload) {
-    return this.renovationProjectService.confirmProject(id, user)
+  confirmProject(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: UserJwtPayload, @Body() dto: ConfirmProjectDto) {
+    return this.renovationProjectService.confirmProject(id, user, dto)
   }
 
   @Delete(':id')

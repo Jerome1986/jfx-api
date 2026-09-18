@@ -9,6 +9,7 @@ import {
   Delete,
   ParseIntPipe,
   Query,
+  BadRequestException,
 } from '@nestjs/common'
 import { ProductService } from './product.service'
 import { CreateProductDto } from './dto/create-product.dto'
@@ -27,6 +28,18 @@ export class ProductController {
   @Get()
   findAll(@Query() query: QueryProductDto) {
     return this.productService.findAll(query)
+  }
+
+  // 按分类查询商品，支持现有筛选和分页参数。
+  @Get('category/:categoryId')
+  findByCategory(
+    @Param('categoryId', ParseIntPipe) categoryId: number,
+    @Query() query: QueryProductDto,
+  ) {
+    if (!Number.isSafeInteger(categoryId) || categoryId < 1) {
+      throw new BadRequestException('商品分类ID必须是正整数')
+    }
+    return this.productService.findAll({ ...query, categoryId })
   }
 
   @Get(':id')

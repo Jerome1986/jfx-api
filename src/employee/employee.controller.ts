@@ -8,7 +8,9 @@ import { UserJwtGuard } from '../common/auth/guards/user-jwt.guard';
 import { CurrentUser } from '../common/auth/decorators/current-user.decorator';
 import type { UserJwtPayload } from '../common/auth/interfaces/user-jwt-payload.interface';
 import { CreateProjectDto } from './dto/create-project.dto';
+import { UpdateProjectQuoteDto } from './dto/update-project-quote.dto';
 import { QueryEmployeeProjectDto } from './dto/query-employee-project.dto';
+import { CancelProjectDto } from './dto/cancel-project.dto';
 
 @Controller('employee')
 export class EmployeeController {
@@ -47,6 +49,12 @@ export class EmployeeController {
     return this.employeeService.findProject(id, user);
   }
 
+  @Patch('projects/:id/cancel')
+  @UseGuards(UserJwtGuard)
+  cancelProject(@Param('id', ParseIntPipe) id: number, @Body() dto: CancelProjectDto, @CurrentUser() user: UserJwtPayload) {
+    return this.employeeService.cancelProject(id, dto, user)
+  }
+
   // 员工完成负责的装修项目
   @Patch('projects/:id/complete')
   @UseGuards(UserJwtGuard)
@@ -77,5 +85,12 @@ export class EmployeeController {
   @UseGuards(UserJwtGuard)
   CreateProject(@Body() createProjectDto: CreateProjectDto, @CurrentUser() user: UserJwtPayload) {
     return this.employeeService.CreateProject(createProjectDto, user)
+  }
+
+  // 员工修改待确认报价
+  @Patch('projects/:id/quote')
+  @UseGuards(UserJwtGuard)
+  employeeUpdateQuote(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateProjectQuoteDto, @CurrentUser() user: UserJwtPayload) {
+    return this.employeeService.updateProjectQuote(id, dto, user)
   }
 }

@@ -721,61 +721,61 @@ model StockLog {
 // 装修预约表：统一保存预算、量房、报价和咨询预约
 model Appointment {
   /// 主键 ID
-  id            Int               @id @default(autoincrement())
+  id                  Int               @id @default(autoincrement())
   /// 预约编号
-  appointmentNo String            @unique @map("appointment_no") @db.VarChar(64)
+  appointmentNo       String            @unique @map("appointment_no") @db.VarChar(64)
   /// 关联用户 ID
-  userId        Int?              @map("user_id")
+  userId              Int?              @map("user_id")
   /// 负责员工 ID
-  employeeId    Int?              @map("employee_id")
+  employeeId          Int?              @map("employee_id")
   /// 关联装修案例 ID
-  caseId        Int?              @map("case_id")
+  caseId              Int?              @map("case_id")
   /// 关联焕新方案 ID
-  planId        Int?              @map("plan_id")
+  planId              Int?              @map("plan_id")
   /// 预约类型
-  type          AppointmentType
+  type                AppointmentType
   /// 来源渠道
-  source        String?
+  source              String?
   /// 客户姓名
-  customerName  String?           @map("customer_name")
+  customerName        String?           @map("customer_name")
   /// 手机号码
-  mobile        String            @db.VarChar(20)
+  mobile              String            @db.VarChar(20)
   /// 房屋类型
-  houseType     String?           @map("house_type")
+  houseType           String?           @map("house_type")
   /// 所在城市
-  city          String?
+  city                String?
   /// 面积（平方米）
-  area          Decimal?          @db.Decimal(8, 2)
+  area                Decimal?          @db.Decimal(8, 2)
   /// 户型布局
-  roomLayout    String?           @map("room_layout")
+  roomLayout          String?           @map("room_layout")
   /// 装修需求
-  demand        String?           @db.Text
+  demand              String?           @db.Text
   /// 预约提交时的方案及明细快照
-  snapshot      Json?
+  snapshot            Json?
   /// 关注重点
-  focus         String?
+  focus               String?
   /// 上门日期
-  visitDate     DateTime?         @map("visit_date")
+  visitDate           DateTime?         @map("visit_date")
   /// 预约时段
-  timeSlot      String?           @map("time_slot")
+  timeSlot            String?           @map("time_slot")
   /// 上门地址
-  visitAddress  String?           @map("visit_address")
+  visitAddress        String?           @map("visit_address")
   /// 预约状态
-  status        AppointmentStatus @default(PENDING_CONTACT)
+  status              AppointmentStatus @default(PENDING_CONTACT)
   /// 上门测量后的参考预估金额，不等于项目实际报价
-  estimatedAmount Decimal? @map("estimated_amount") @db.Decimal(10, 2)
+  estimatedAmount     Decimal?          @map("estimated_amount") @db.Decimal(10, 2)
   /// 预估报价说明
-  estimateDescription String? @map("estimate_description") @db.VarChar(191)
+  estimateDescription String?           @map("estimate_description") @db.VarChar(191)
   /// 预估报价提交时间
-  estimatedAt DateTime? @map("estimated_at")
+  estimatedAt         DateTime?         @map("estimated_at")
   /// 完成时间
-  completedAt   DateTime?         @map("completed_at")
+  completedAt         DateTime?         @map("completed_at")
   /// 取消时间
-  canceledAt    DateTime?         @map("canceled_at")
+  canceledAt          DateTime?         @map("canceled_at")
   /// 创建时间
-  createdAt     DateTime          @default(now()) @map("created_at")
+  createdAt           DateTime          @default(now()) @map("created_at")
   /// 更新时间
-  updatedAt     DateTime          @updatedAt @map("updated_at")
+  updatedAt           DateTime          @updatedAt @map("updated_at")
 
   /// 关联用户
   user      User?              @relation(fields: [userId], references: [id])
@@ -837,7 +837,7 @@ model RenovationProject {
   userId         Int?                    @map("user_id")
   /// 负责员工 ID
   employeeId     Int?                    @map("employee_id")
-  /// 关联焕新方案 ID
+  /// 关联方案 ID
   planId         Int?                    @map("plan_id")
   /// 装修项目名称
   name           String
@@ -849,10 +849,19 @@ model RenovationProject {
   serviceAddress String                  @map("service_address")
   /// 当前报价金额
   quotedAmount   Decimal                 @default(0) @map("quoted_amount") @db.Decimal(10, 2)
+  /// 每次修改报价时递增，确认时校验客户端版本
+  quoteVersion   Int                     @default(1) @map("quote_version")
+  /// 最近一次报价修改备注
+  quoteRemark    String?                 @map("quote_remark") @db.VarChar(500)
   /// 合同成交金额
   contractAmount Decimal?                @map("contract_amount") @db.Decimal(10, 2)
   /// 装修项目状态
   status         RenovationProjectStatus @default(PENDING_CONFIRM)
+  /// 取消原因与操作时间
+  cancelReason   String?                 @map("cancel_reason") @db.VarChar(500)
+  canceledAt     DateTime?               @map("canceled_at")
+  /// 取消操作者员工 ID 快照，保留审计信息，不随负责人变更
+  canceledByEmployeeId Int?              @map("canceled_by_employee_id")
   /// 完成时间
   completedAt    DateTime?               @map("completed_at")
   /// 创建时间
