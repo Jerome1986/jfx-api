@@ -128,6 +128,10 @@ export class UserRepository {
       where: { id },
       select: {
         ...safeUserSelect,
+        userCoupons: {
+          include: { coupon: true },
+          orderBy: [{ receivedAt: 'desc' }, { id: 'desc' }],
+        },
         _count: {
           select: {
             appointments: true,
