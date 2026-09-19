@@ -110,12 +110,17 @@ enum PointChangeType {
   EXPIRED // 积分过期
 }
 
+// 优惠券适用业务范围
+enum CouponScopeType {
+  ALL // 全部
+  RENOVATION // 装修
+  PRODUCT // 商品
+}
+
 // 优惠券模板状态
 enum CouponStatus {
   DRAFT // 草稿
-  NOT_STARTED // 未开始
-  ACTIVE // 生效中
-  ENDED // 已结束
+  PUBLISHED // 已发布
   DISABLED // 已停用
 }
 
@@ -828,46 +833,46 @@ model FollowUp {
 // 装修项目表：保存由预约转化的装修项目及成交信息
 model RenovationProject {
   /// 主键 ID
-  id             Int                     @id @default(autoincrement())
+  id                   Int                     @id @default(autoincrement())
   /// 装修项目编号
-  projectNo      String                  @unique @map("project_no") @db.VarChar(64)
+  projectNo            String                  @unique @map("project_no") @db.VarChar(64)
   /// 关联预约 ID
-  appointmentId  Int?                    @unique @map("appointment_id")
+  appointmentId        Int?                    @unique @map("appointment_id")
   /// 关联用户 ID
-  userId         Int?                    @map("user_id")
+  userId               Int?                    @map("user_id")
   /// 负责员工 ID
-  employeeId     Int?                    @map("employee_id")
+  employeeId           Int?                    @map("employee_id")
   /// 关联方案 ID
-  planId         Int?                    @map("plan_id")
+  planId               Int?                    @map("plan_id")
   /// 装修项目名称
-  name           String
+  name                 String
   /// 客户姓名
-  customerName   String                  @map("customer_name")
+  customerName         String                  @map("customer_name")
   /// 手机号码
-  mobile         String
+  mobile               String
   /// 服务地址快照
-  serviceAddress String                  @map("service_address")
+  serviceAddress       String                  @map("service_address")
   /// 当前报价金额
-  quotedAmount   Decimal                 @default(0) @map("quoted_amount") @db.Decimal(10, 2)
+  quotedAmount         Decimal                 @default(0) @map("quoted_amount") @db.Decimal(10, 2)
   /// 每次修改报价时递增，确认时校验客户端版本
-  quoteVersion   Int                     @default(1) @map("quote_version")
+  quoteVersion         Int                     @default(1) @map("quote_version")
   /// 最近一次报价修改备注
-  quoteRemark    String?                 @map("quote_remark") @db.VarChar(500)
+  quoteRemark          String?                 @map("quote_remark") @db.VarChar(500)
   /// 合同成交金额
-  contractAmount Decimal?                @map("contract_amount") @db.Decimal(10, 2)
+  contractAmount       Decimal?                @map("contract_amount") @db.Decimal(10, 2)
   /// 装修项目状态
-  status         RenovationProjectStatus @default(PENDING_CONFIRM)
+  status               RenovationProjectStatus @default(PENDING_CONFIRM)
   /// 取消原因与操作时间
-  cancelReason   String?                 @map("cancel_reason") @db.VarChar(500)
-  canceledAt     DateTime?               @map("canceled_at")
+  cancelReason         String?                 @map("cancel_reason") @db.VarChar(500)
+  canceledAt           DateTime?               @map("canceled_at")
   /// 取消操作者员工 ID 快照，保留审计信息，不随负责人变更
-  canceledByEmployeeId Int?              @map("canceled_by_employee_id")
+  canceledByEmployeeId Int?                    @map("canceled_by_employee_id")
   /// 完成时间
-  completedAt    DateTime?               @map("completed_at")
+  completedAt          DateTime?               @map("completed_at")
   /// 创建时间
-  createdAt      DateTime                @default(now()) @map("created_at")
+  createdAt            DateTime                @default(now()) @map("created_at")
   /// 更新时间
-  updatedAt      DateTime                @updatedAt @map("updated_at")
+  updatedAt            DateTime                @updatedAt @map("updated_at")
 
   /// 关联来源预约
   appointment Appointment?       @relation(fields: [appointmentId], references: [id])
@@ -980,13 +985,13 @@ model ProductOrder {
   /// 使用积分数量
   pointsUsed      Int                @default(0) @map("points_used")
   /// 安装费用
-  installationFee Decimal            @default(0) @map("installation_fee") @db.Decimal(10, 2)
+  installationFee Decimal?           @default(0) @map("installation_fee") @db.Decimal(10, 2)
   /// 应付金额
   payableAmount   Decimal            @map("payable_amount") @db.Decimal(10, 2)
   /// 实付金额
   paidAmount      Decimal            @default(0) @map("paid_amount") @db.Decimal(10, 2)
   /// 退款金额
-  refundAmount    Decimal            @default(0) @map("refund_amount") @db.Decimal(10, 2)
+  refundAmount    Decimal?           @default(0) @map("refund_amount") @db.Decimal(10, 2)
   /// 商品订单状态
   status          ProductOrderStatus @default(PENDING_PAYMENT)
   /// 支付状态
@@ -1153,7 +1158,7 @@ model Coupon {
   /// 使用门槛
   threshold      Decimal      @default(0) @db.Decimal(10, 2)
   /// 适用范围类型
-  scopeType      String       @default("ALL") @map("scope_type")
+  scopeType      CouponScopeType @default(ALL) @map("scope_type")
   /// 适用业务、分类或商品 ID 列表
   scopeIds       Json?        @map("scope_ids")
   /// 有效期开始时间

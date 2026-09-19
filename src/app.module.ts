@@ -21,6 +21,9 @@ import { FavoriteModule } from './favorite/favorite.module';
 import { ServiceOutletModule } from './service-outlet/service-outlet.module';
 import { ServiceCityModule } from './service-city/service-city.module';
 import { RenovationProjectModule } from './renovation-project/renovation-project.module';
+import { OrderModule } from './order/order.module';
+import { CouponModule } from './coupon/coupon.module';
+import { UserCouponModule } from './user-coupon/user-coupon.module';
 
 @Module({
   imports: [
@@ -45,6 +48,9 @@ import { RenovationProjectModule } from './renovation-project/renovation-project
     ServiceOutletModule,
     ServiceCityModule,
     RenovationProjectModule,
+    OrderModule,
+    CouponModule,
+    UserCouponModule,
   ],
   controllers: [AppController],
   providers: [AppService],
