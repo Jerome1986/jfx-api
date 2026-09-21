@@ -24,6 +24,8 @@ import { RenovationProjectModule } from './renovation-project/renovation-project
 import { OrderModule } from './order/order.module';
 import { CouponModule } from './coupon/coupon.module';
 import { UserCouponModule } from './user-coupon/user-coupon.module';
+import { PaymentModule } from './payment/payment.module';
+import { NotifyModule } from './notify/notify.module';
 
 @Module({
   imports: [
@@ -51,6 +53,8 @@ import { UserCouponModule } from './user-coupon/user-coupon.module';
     OrderModule,
     CouponModule,
     UserCouponModule,
+    PaymentModule,
+    NotifyModule
   ],
   controllers: [AppController],
   providers: [AppService],

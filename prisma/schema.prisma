@@ -73,6 +73,13 @@ enum ProductOrderStatus {
   CANCELED // 已取消
   REFUNDING // 退款中
   REFUNDED // 已退款
+  PENDING_CONFIRMATION // 安装已完工，待客户确认
+}
+
+// 商品订单最终完成方式；历史订单允许为空。
+enum OrderCompletionType {
+  CUSTOMER_CONFIRMED // 客户主动确认
+  AUTO_TIMEOUT // 超时自动完成
 }
 
 // 商品订单支付与退款状态
@@ -960,6 +967,16 @@ model ProjectProgress {
 
 // 商品订单表：保存订单金额、支付、退款及履约状态
 model ProductOrder {
+  /// 客户确认截止时间，安装完工后开始计算
+  confirmationDeadlineAt DateTime? @map("confirmation_deadline_at")
+  /// 订单最终完成方式，历史订单为空
+  completionType OrderCompletionType? @map("completion_type")
+  /// 线下争议处理期间暂停自动完成
+  autoCompletionPaused Boolean @default(false) @map("auto_completion_paused")
+  /// Installation booking selected before payment; nullable for legacy orders.
+  appointmentDate DateTime? @map("appointment_date") @db.Date
+
+  timeSlot        String?            @map("time_slot") @db.VarChar(11)
   /// 主键 ID
   id              Int                @id @default(autoincrement())
   /// 商品订单编号
@@ -1023,6 +1040,7 @@ model ProductOrder {
   @@index([userId, status])
   @@index([status, createdAt])
   @@index([paymentNo])
+  @@index([status, confirmationDeadlineAt])
   @@map("product_order")
 }
 
@@ -1063,6 +1081,14 @@ model ProductOrderItem {
 
 // 安装服务单表：保存商品订单的安装预约及服务过程
 model InstallationOrder {
+  /// 客户主动确认时间，与安装完工时间区分
+  customerConfirmedAt DateTime? @map("customer_confirmed_at")
+  /// 线下安装人员或团队名称，不关联员工账号
+  installerName     String?            @map("installer_name") @db.VarChar(100)
+  /// 安装联系电话
+  installerPhone    String?            @map("installer_phone") @db.VarChar(32)
+  /// 安装备注
+  remark            String?            @db.VarChar(1000)
   /// 主键 ID
   id                Int                @id @default(autoincrement())
   /// 安装服务单编号
@@ -1150,33 +1176,33 @@ model PointRecord {
 // 优惠券模板表：定义券面额、门槛、范围和发行数量
 model Coupon {
   /// 主键 ID
-  id             Int          @id @default(autoincrement())
+  id             Int             @id @default(autoincrement())
   /// 优惠券名称
   name           String
   /// 优惠券面额
-  amount         Decimal      @db.Decimal(10, 2)
+  amount         Decimal         @db.Decimal(10, 2)
   /// 使用门槛
-  threshold      Decimal      @default(0) @db.Decimal(10, 2)
+  threshold      Decimal         @default(0) @db.Decimal(10, 2)
   /// 适用范围类型
   scopeType      CouponScopeType @default(ALL) @map("scope_type")
   /// 适用业务、分类或商品 ID 列表
-  scopeIds       Json?        @map("scope_ids")
+  scopeIds       Json?           @map("scope_ids")
   /// 有效期开始时间
-  validFrom      DateTime     @map("valid_from")
+  validFrom      DateTime        @map("valid_from")
   /// 有效期结束时间
-  validTo        DateTime     @map("valid_to")
+  validTo        DateTime        @map("valid_to")
   /// 发行总量
-  totalQuantity  Int          @map("total_quantity")
+  totalQuantity  Int             @map("total_quantity")
   /// 已发行数量
-  issuedQuantity Int          @default(0) @map("issued_quantity")
+  issuedQuantity Int             @default(0) @map("issued_quantity")
   /// 每人限领数量
-  perUserLimit   Int          @default(1) @map("per_user_limit")
+  perUserLimit   Int             @default(1) @map("per_user_limit")
   /// 优惠券模板状态
-  status         CouponStatus @default(DRAFT)
+  status         CouponStatus    @default(DRAFT)
   /// 创建时间
-  createdAt      DateTime     @default(now()) @map("created_at")
+  createdAt      DateTime        @default(now()) @map("created_at")
   /// 更新时间
-  updatedAt      DateTime     @updatedAt @map("updated_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
 
   /// 关联用户优惠券列表
   userCoupons UserCoupon[]

@@ -40,9 +40,17 @@ export class CouponRepository {
   }
 
   // 详情
-  findOne(id: number) {
-    return this.prisma.coupon.findFirst({
+  findOne(id: number, tx: Prisma.TransactionClient = this.prisma) {
+    return tx.coupon.findFirst({
       where: { id }
+    })
+  }
+
+  // 在发行总量内增加已发行数量，返回实际更新的记录数。
+  incrementIssuedQuantity(id: number, totalQuantity: number, tx: Prisma.TransactionClient) {
+    return tx.coupon.updateMany({
+      where: { id, totalQuantity, issuedQuantity: { lt: totalQuantity } },
+      data: { issuedQuantity: { increment: 1 } },
     })
   }
 

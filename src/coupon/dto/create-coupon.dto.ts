@@ -48,15 +48,6 @@ export class CreateCouponDto {
   })
   scopeType?: CouponScopeType
 
-  /** 适用业务、分类或商品ID列表，全场券可不传。 */
-  @IsOptional()
-  @IsArray({ message: '适用范围ID列表必须是数组' })
-  @ArrayUnique({ message: '适用范围ID不能重复' })
-  @IsInt({ each: true, message: '每个适用范围ID必须是整数' })
-  @Min(1, { each: true, message: '每个适用范围ID必须大于0' })
-  @Max(2147483647, { each: true, message: '每个适用范围ID不能大于2147483647' })
-  scopeIds?: number[]
-
   /** 有效期开始时间，ISO 8601格式。 */
   @IsDateString({ strict: true }, { message: '有效期开始时间必须是有效的ISO 8601日期时间' })
   validFrom: string
