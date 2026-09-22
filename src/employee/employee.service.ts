@@ -1,3 +1,4 @@
+import { legacyProjectOmit } from '../renovation-project/legacy-project-fields';
 // 文件说明：员工业务服务，负责业务规则与流程编排。
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
@@ -14,6 +15,7 @@ import { UpdateProjectQuoteDto } from './dto/update-project-quote.dto';
 import { CancelProjectDto } from './dto/cancel-project.dto';
 import { RenovationProjectRepository } from 'src/renovation-project/renovation-project.repository';
 import { AppointmentRepository } from '../appointment/appointment.repository';
+import { projectQuoteTotal } from '../renovation-project/project-amount';
 import { QueryEmployeeProjectDto } from './dto/query-employee-project.dto';
 
 @Injectable()
@@ -117,6 +119,7 @@ export class EmployeeService {
 
   // 校验当前用户的员工身份和账号状态，返回员工档案
   private async requireActiveEmployee(user: UserJwtPayload) {
+    if (user.type !== 'user') throw new ForbiddenException('仅员工用户可操作装修订单')
     if (user.role !== 'EMPLOYEE') throw new ForbiddenException('仅员工可操作装修订单')
     const employee = await this.employeeRepo.findByUserId(user.userId)
     if (!employee || !employee.status || !employee.user.status || employee.user.role !== 'EMPLOYEE') {
@@ -187,11 +190,7 @@ export class EmployeeService {
       throw new ConflictException('项目状态或报价已变化，请刷新后重试')
     }
     if (!dto.quoteItems?.length) throw new BadRequestException('请至少填写一项报价明细')
-    const quotedAmount = dto.quoteItems.reduce(
-      (sum, item) => sum.plus(new Prisma.Decimal(item.unitPrice).mul(item.quantity)),
-      new Prisma.Decimal(0),
-    ).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP)
-    if (quotedAmount.greaterThan('99999999.99')) throw new BadRequestException('报价总额超出允许范围')
+    const quotedAmount = projectQuoteTotal(dto.quoteItems)
     try {
       return await this.prisma.$transaction(async (tx) => {
         const plan = await tx.renewalPlan.findFirst({ where: { id: dto.planId, status: 'PUBLISHED' }, select: { id: true } })
@@ -209,7 +208,7 @@ export class EmployeeService {
           projectId: id, sort, productId: item.productId, category: item.category, name: item.name,
           description: item.description, image: item.image, unit: item.unit, unitPrice: item.unitPrice, quantity: item.quantity,
         })) })
-        return tx.renovationProject.findUniqueOrThrow({ where: { id }, include: { plan: true, quoteItems: { orderBy: [{ sort: 'asc' }, { id: 'asc' }] } } })
+        return tx.renovationProject.findUniqueOrThrow({ omit: legacyProjectOmit, where: { id }, include: { plan: true, quoteItems: { orderBy: [{ sort: 'asc' }, { id: 'asc' }] } } })
       })
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && ['P2025', 'P2034'].includes(error.code)) {
@@ -270,6 +269,7 @@ export class EmployeeService {
 
   // 员工创建装修项目
   async CreateProject(createProjectDto: CreateProjectDto, user: UserJwtPayload) {
+    if (user.type !== 'user') throw new ForbiddenException('仅员工用户可操作装修订单')
     // 1.校验员工身份
     const employee = await this.employeeRepo.findByUserId(user.userId)
     if (
@@ -318,13 +318,7 @@ export class EmployeeService {
     }
 
     // 4.创建装修项目 + 明细
-    const quotedAmount = createProjectDto.quoteItems.reduce(
-      (sum, item) =>
-        sum.plus(
-          new Prisma.Decimal(item.unitPrice).mul(item.quantity),
-        ),
-      new Prisma.Decimal(0),
-    )
+    const quotedAmount = projectQuoteTotal(createProjectDto.quoteItems)
 
     return this.renovationProjectRepo.createRenovationProject({
       projectNo: generateRandomCode(),

@@ -68,6 +68,6 @@ describe('员工取消项目', () => {
   it('原子更新限定状态及负责人，仅保存取消记录并返回标准详情', async () => {
     const update = jest.fn().mockResolvedValue({ id: 3 })
     await new EmployeeRepository({ renovationProject: { update } } as any).cancelProject(3, 21, dto)
-    expect(update).toHaveBeenCalledWith({ where: { id: 3, employeeId: 21, status: 'PENDING_CONFIRM' }, data: { status: 'CANCELED', cancelReason: dto.reason, canceledAt: expect.any(Date), canceledByEmployeeId: 21 }, include: employeeProjectDetailInclude })
+    expect(update).toHaveBeenCalledWith({ omit: { remark: true, progress: true }, where: { id: 3, employeeId: 21, status: 'PENDING_CONFIRM' }, data: { status: 'CANCELED', cancelReason: dto.reason, canceledAt: expect.any(Date), canceledByEmployeeId: 21, progress: dto.reason, progresses: { create: { status: 'CANCELED', content: dto.reason, createdBy: 'employee:21' } } }, include: employeeProjectDetailInclude })
   })
 })

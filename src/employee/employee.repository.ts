@@ -1,3 +1,4 @@
+import { legacyProjectOmit } from '../renovation-project/legacy-project-fields';
 // 文件说明：员工数据仓储，封装数据库访问操作。
 import { Injectable } from '@nestjs/common'
 import { Prisma } from '../../generated/prisma/client'
@@ -81,6 +82,7 @@ export class EmployeeRepository {
     }
     return Promise.all([
       this.prisma.renovationProject.findMany({
+      omit: legacyProjectOmit,
         where,
         include: {
           quoteItems: {
@@ -99,6 +101,7 @@ export class EmployeeRepository {
   // 按项目 ID 和负责员工查询装修订单及关联详情
   findProject(id: number, employeeId: number) {
     return this.prisma.renovationProject.findFirst({
+      omit: legacyProjectOmit,
       where: { id, employeeId },
       include: employeeProjectDetailInclude,
     })
@@ -107,10 +110,13 @@ export class EmployeeRepository {
   // 条件更新与确认、完工竞争同一项目，保留所有报价及来源数据。
   cancelProject(id: number, employeeId: number, dto: CancelProjectDto) {
     return this.prisma.renovationProject.update({
+      omit: legacyProjectOmit,
       where: { id, employeeId, status: dto.expectedStatus },
       data: {
         status: 'CANCELED', cancelReason: dto.reason.trim(),
         canceledAt: new Date(), canceledByEmployeeId: employeeId,
+        progress: dto.reason.trim(),
+        progresses: { create: { status: 'CANCELED', content: dto.reason.trim(), createdBy: `employee:${employeeId}` } },
       },
       include: employeeProjectDetailInclude,
     })
@@ -119,8 +125,9 @@ export class EmployeeRepository {
   // 将员工负责的服务中项目标记为已完成并记录完成时间
   completeProject(id: number, employeeId: number) {
     return this.prisma.renovationProject.update({
+      omit: legacyProjectOmit,
       where: { id, employeeId, status: 'IN_SERVICE' },
-      data: { status: 'COMPLETED', completedAt: new Date() },
+      data: { status: 'COMPLETED', completedAt: new Date(), progress: '员工已确认项目完工', progresses: { create: { status: 'COMPLETED', content: '员工已确认项目完工', createdBy: `employee:${employeeId}` } } },
     })
   }
 

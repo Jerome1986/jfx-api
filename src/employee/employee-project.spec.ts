@@ -34,6 +34,15 @@ describe('员工装修订单', () => {
     expect(repo.findProjects).toHaveBeenCalledWith(21, new QueryEmployeeProjectDto())
   })
 
+  it('管理员 ID 与员工用户 ID 重合时仍拒绝员工入口', async () => {
+    const admin = { ...user, type: 'admin' } as unknown as UserJwtPayload
+    await expect(service.findProjects(new QueryEmployeeProjectDto(), admin)).rejects.toBeInstanceOf(ForbiddenException)
+    await expect(service.findProject(3, admin)).rejects.toBeInstanceOf(ForbiddenException)
+    await expect(service.completeProject(3, admin)).rejects.toBeInstanceOf(ForbiddenException)
+    await expect(service.CreateProject({} as any, admin)).rejects.toBeInstanceOf(ForbiddenException)
+    expect(repo.findByUserId).not.toHaveBeenCalled()
+  })
+
   it('普通用户不能读取员工订单', async () => {
     await expect(service.findProjects(new QueryEmployeeProjectDto(), { ...user, role: 'CUSTOMER' } as UserJwtPayload)).rejects.toBeInstanceOf(ForbiddenException)
     expect(repo.findProjects).not.toHaveBeenCalled()
@@ -103,7 +112,7 @@ describe('员工装修订单', () => {
     await expect(service.completeProject(3, user)).rejects.toBe(error)
   })
 
-  it('完成更新限定员工和服务中状态，仅写入完成状态及当前时间', async () => {
+  it('完成更新限定员工和服务中状态，原子保存完成时间及进度', async () => {
     const now = new Date('2026-09-15T08:00:00.000Z')
     jest.useFakeTimers().setSystemTime(now)
     try {
@@ -111,8 +120,9 @@ describe('员工装修订单', () => {
       const repository = new EmployeeRepository({ renovationProject: { update } } as any)
       await expect(repository.completeProject(3, 21)).resolves.toEqual({ id: 3, status: 'COMPLETED', completedAt: now })
       expect(update).toHaveBeenCalledWith({
+        omit: { remark: true, progress: true },
         where: { id: 3, employeeId: 21, status: 'IN_SERVICE' },
-        data: { status: 'COMPLETED', completedAt: now },
+        data: { status: 'COMPLETED', completedAt: now, progress: '员工已确认项目完工', progresses: { create: { status: 'COMPLETED', content: '员工已确认项目完工', createdBy: 'employee:21' } } },
       })
     } finally {
       jest.useRealTimers()

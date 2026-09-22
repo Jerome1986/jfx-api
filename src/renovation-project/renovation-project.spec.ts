@@ -9,7 +9,7 @@ import type { UserJwtPayload } from '../common/auth/interfaces/user-jwt-payload.
 
 describe('装修项目确认与详情', () => {
   const user = { userId: 7, type: 'user' } as UserJwtPayload
-  const project = { id: 1, userId: 7, status: 'PENDING_CONFIRM', quoteVersion: 1, updatedAt: new Date(), quotedAmount: new Prisma.Decimal('123.45') }
+  const project = { quoteItems: [{ id: 1 }], id: 1, userId: 7, status: 'PENDING_CONFIRM', quoteVersion: 1, updatedAt: new Date(), quotedAmount: new Prisma.Decimal('123.45') }
   let repo: { findOne: jest.Mock; confirmProject: jest.Mock }
   let service: RenovationProjectService
 
@@ -53,6 +53,12 @@ describe('装修项目确认与详情', () => {
     expect(repo.confirmProject).not.toHaveBeenCalled()
   })
 
+  it('无明细的新项目不能通过小程序确认', async () => {
+    repo.findOne.mockResolvedValue({ ...project, quoteItems: [] })
+    await expect(service.confirmProject(1, user, { quoteVersion: 1 })).rejects.toBeInstanceOf(BadRequestException)
+    expect(repo.confirmProject).not.toHaveBeenCalled()
+  })
+
   it('确认成功返回服务中项目及成交金额', async () => {
     await expect(service.confirmProject(1, user, { quoteVersion: 1 })).resolves.toMatchObject({ status: 'IN_SERVICE', contractAmount: project.quotedAmount })
   })
@@ -73,8 +79,9 @@ describe('装修项目确认与详情', () => {
     const repository = new RenovationProjectRepository({ renovationProject: { update } } as any)
     await repository.confirmProject(1, 7, project)
     expect(update).toHaveBeenCalledWith({
+        omit: { remark: true, progress: true },
       where: { id: 1, userId: 7, status: 'PENDING_CONFIRM', quoteVersion: 1, updatedAt: project.updatedAt, quotedAmount: project.quotedAmount },
-      data: { status: 'IN_SERVICE', contractAmount: project.quotedAmount },
+      data: { status: 'IN_SERVICE', contractAmount: project.quotedAmount, progress: '客户已确认报价，开始服务', progresses: { create: { status: 'IN_SERVICE', content: '客户已确认报价，开始服务', createdBy: 'user:7' } } },
     })
   })
 })

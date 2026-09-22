@@ -839,6 +839,9 @@ model FollowUp {
 
 // 装修项目表：保存由预约转化的装修项目及成交信息
 model RenovationProject {
+  /// 后台项目备注与最新进度摘要
+  remark               String                  @default("") @db.VarChar(5000)
+  progress             String                  @default("") @db.VarChar(5000)
   /// 主键 ID
   id                   Int                     @id @default(autoincrement())
   /// 装修项目编号

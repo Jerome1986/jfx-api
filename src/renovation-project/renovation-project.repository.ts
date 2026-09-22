@@ -1,3 +1,4 @@
+import { legacyProjectOmit } from './legacy-project-fields';
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "src/prisma/prisma.service";
 import { Prisma } from "../../generated/prisma/client";
@@ -10,6 +11,7 @@ export class RenovationProjectRepository {
   // 创建项目表
   createRenovationProject(data: Prisma.RenovationProjectUncheckedCreateInput) {
     return this.prisma.renovationProject.create({
+      omit: legacyProjectOmit,
       data
     })
   }
@@ -24,6 +26,7 @@ export class RenovationProjectRepository {
 
     return await Promise.all([
       this.prisma.renovationProject.findMany({
+      omit: legacyProjectOmit,
         where,
         include: { plan: true, quoteItems: { orderBy: [{ sort: 'asc' }, { id: 'asc' }] } },
         skip: (pageNum - 1) * pageSize,
@@ -37,6 +40,7 @@ export class RenovationProjectRepository {
   // 根据 appointmentId 查询是否有已经创建过的项目
   getProjectByAppointmentId(appointmentId: number) {
     return this.prisma.renovationProject.findFirst({
+      omit: legacyProjectOmit,
       where: { appointmentId }
     })
   }
@@ -44,6 +48,7 @@ export class RenovationProjectRepository {
   // 项目详情
   findOne(id: number, userId: number) {
     return this.prisma.renovationProject.findFirst({
+      omit: legacyProjectOmit,
       where: { id, userId },
       include: { plan: true, quoteItems: { orderBy: [{ sort: 'asc' }, { id: 'asc' }] } }
     })
@@ -52,6 +57,7 @@ export class RenovationProjectRepository {
   // 用户确认报价开始装修服务
   confirmProject(id: number, userId: number, project: { updatedAt: Date; quotedAmount: Prisma.Decimal; quoteVersion: number }) {
     return this.prisma.renovationProject.update({
+      omit: legacyProjectOmit,
       // 条件更新防止读取之后的取消、归属变更或报价修改被覆盖。
       where: {
         id,
@@ -64,6 +70,8 @@ export class RenovationProjectRepository {
       data: {
         status: 'IN_SERVICE',
         contractAmount: project.quotedAmount,
+        progress: '客户已确认报价，开始服务',
+        progresses: { create: { status: 'IN_SERVICE', content: '客户已确认报价，开始服务', createdBy: `user:${userId}` } },
       }
     })
   }

@@ -1,0 +1,3 @@
+ALTER TABLE `renovation_project`
+  ADD COLUMN `remark` VARCHAR(5000) NOT NULL DEFAULT '',
+  ADD COLUMN `progress` VARCHAR(5000) NOT NULL DEFAULT '';

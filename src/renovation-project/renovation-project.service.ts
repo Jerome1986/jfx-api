@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateRenovationProjectDto } from './dto/create-renovation-project.dto';
 import { Prisma } from '../../generated/prisma/client';
 import { RenovationProjectRepository } from './renovation-project.repository';
@@ -19,6 +19,7 @@ export class RenovationProjectService {
   // 获取指定用户装修项目列表
   async findAllByUser(queryDto: QueryUserRenovationProjectDto, user: UserJwtPayload) {
     // 1.处理参数
+    if (user.type !== 'user') throw new ForbiddenException('仅用户可查看自己的项目')
     const status = queryDto.status ?? ProjectStatus.ALL
     const pageNum = Number(queryDto.pageNum) || 1
     const pageSize = Number(queryDto.pageSize) || 10
@@ -38,6 +39,7 @@ export class RenovationProjectService {
 
   // 查找项目详情
   async findOne(id: number, user: UserJwtPayload) {
+    if (user.type !== 'user') throw new ForbiddenException('仅用户可查看自己的项目')
     if (!Number.isSafeInteger(id) || id <= 0) {
       throw new BadRequestException('项目 ID 必须是正整数')
     }
@@ -51,6 +53,7 @@ export class RenovationProjectService {
     const project = await this.findOne(id, user)
     if (project.status === 'IN_SERVICE') throw new ConflictException('该项目已确认，请勿重复确认')
     if (project.status !== 'PENDING_CONFIRM') throw new ConflictException('当前项目状态不允许确认')
+    if (!project.quoteItems.length) throw new BadRequestException('请先保存报价明细')
     if (project.quoteVersion !== dto.quoteVersion) throw new ConflictException('报价已更新，请刷新后重新确认')
     try {
       return await this.renovationProjectRepo.confirmProject(id, user.userId, project)

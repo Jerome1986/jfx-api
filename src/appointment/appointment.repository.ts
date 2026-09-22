@@ -1,3 +1,4 @@
+import { legacyProjectOmit } from '../renovation-project/legacy-project-fields';
 // 文件说明：预约数据仓储，封装预约相关数据库访问。
 import { Injectable } from '@nestjs/common'
 import { Prisma } from '../../generated/prisma/client'
@@ -102,7 +103,7 @@ export class AppointmentRepository {
           },
           plan: true,
           followUps: true,
-          project: true,
+          project: { omit: legacyProjectOmit },
         },
         orderBy: { updatedAt: 'desc' }
       }),
@@ -133,7 +134,7 @@ export class AppointmentRepository {
           employee: true,
           plan: true,
           followUps: true,
-          project: true,
+          project: { omit: legacyProjectOmit },
         },
       }),
       this.prisma.appointment.count({ where }),
@@ -185,7 +186,7 @@ export class AppointmentRepository {
           employee: true,
           plan: true,
           followUps: true,
-          project: true,
+          project: { omit: legacyProjectOmit },
         },
       }),
       this.prisma.appointment.count({ where }),
@@ -214,7 +215,7 @@ export class AppointmentRepository {
         },
         plan: true,
         followUps: true,
-        project: true,
+        project: { omit: legacyProjectOmit },
       },
     })
   }
@@ -246,7 +247,7 @@ export class AppointmentRepository {
         },
         plan: true,
         followUps: true,
-        project: true,
+        project: { omit: legacyProjectOmit },
       },
     })
   }
@@ -283,7 +284,7 @@ export class AppointmentRepository {
         },
         plan: true,
         followUps: true,
-        project: true,
+        project: { omit: legacyProjectOmit },
       },
     })
   }
@@ -458,7 +459,7 @@ export class AppointmentRepository {
         employee: { include: { user: { select: { realName: true, mobile: true } } } },
         plan: true,
         followUps: true,
-        project: true,
+        project: { omit: legacyProjectOmit },
       },
     })
   }
