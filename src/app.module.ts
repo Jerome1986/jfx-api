@@ -26,6 +26,7 @@ import { CouponModule } from './coupon/coupon.module';
 import { UserCouponModule } from './user-coupon/user-coupon.module';
 import { PaymentModule } from './payment/payment.module';
 import { NotifyModule } from './notify/notify.module';
+import { FeedbackModule } from './feedback/feedback.module';
 
 @Module({
   imports: [
@@ -54,7 +55,8 @@ import { NotifyModule } from './notify/notify.module';
     CouponModule,
     UserCouponModule,
     PaymentModule,
-    NotifyModule
+    NotifyModule,
+    FeedbackModule
   ],
   controllers: [AppController],
   providers: [AppService],

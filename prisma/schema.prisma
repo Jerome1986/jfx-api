@@ -564,26 +564,27 @@ model Favorite {
 
 // 施工服务表：保存保护、拆除、保洁、防水和安装等按单位计价的服务
 model ConstructionService {
+  quoteItems  ProjectQuoteItem[]
   /// 主键 ID
-  id          Int      @id @default(autoincrement())
+  id          Int                @id @default(autoincrement())
   /// 服务名称
-  name        String   @db.VarChar(255)
+  name        String             @db.VarChar(255)
   /// 服务内容或适用范围
-  description String?  @db.VarChar(500)
+  description String?            @db.VarChar(500)
   /// 计价单位，例如：㎡、项、个
-  unit        String   @db.VarChar(32)
+  unit        String             @db.VarChar(32)
   /// 基础单价
-  unitPrice   Decimal  @map("unit_price") @db.Decimal(10, 2)
+  unitPrice   Decimal            @map("unit_price") @db.Decimal(10, 2)
   /// 服务图片
-  image       String?  @db.VarChar(500)
+  image       String?            @db.VarChar(500)
   /// 是否启用
-  isEnabled   Boolean  @default(true) @map("is_enabled")
+  isEnabled   Boolean            @default(true) @map("is_enabled")
   /// 排序值，数值越小越靠前
-  sort        Int      @default(0)
+  sort        Int                @default(0)
   /// 创建时间
-  createdAt   DateTime @default(now()) @map("created_at")
+  createdAt   DateTime           @default(now()) @map("created_at")
   /// 更新时间
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
 
   @@index([isEnabled, sort])
   @@map("construction_service")
@@ -906,12 +907,15 @@ model RenovationProject {
 
 // 项目报价明细表：保存装修项目的主材、人工和辅材报价
 model ProjectQuoteItem {
+  /// 可选施工服务关联；与商品关联互斥
+  serviceId   Int?                 @map("service_id")
+  service     ConstructionService? @relation(fields: [serviceId], references: [id], onDelete: Restrict)
   /// 主键 ID
-  id          Int      @id @default(autoincrement())
+  id          Int                  @id @default(autoincrement())
   /// 关联装修项目 ID
-  projectId   Int      @map("project_id")
+  projectId   Int                  @map("project_id")
   /// 关联商品 ID
-  productId   Int?     @map("product_id")
+  productId   Int?                 @map("product_id")
   /// 报价项目分类
   category    String
   /// 报价项目名称
@@ -921,23 +925,24 @@ model ProjectQuoteItem {
   /// 计价单位
   unit        String
   /// 单价
-  unitPrice   Decimal  @map("unit_price") @db.Decimal(10, 2)
+  unitPrice   Decimal              @map("unit_price") @db.Decimal(10, 2)
   /// 数量
-  quantity    Decimal  @default(1) @db.Decimal(10, 2)
+  quantity    Decimal              @default(1) @db.Decimal(10, 2)
   /// 图片地址
   image       String?
   /// 排序值
-  sort        Int      @default(0)
+  sort        Int                  @default(0)
   /// 创建时间
-  createdAt   DateTime @default(now()) @map("created_at")
+  createdAt   DateTime             @default(now()) @map("created_at")
   /// 更新时间
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  updatedAt   DateTime             @updatedAt @map("updated_at")
 
   /// 关联装修项目
   project RenovationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
   /// 关联商品
   product Product?          @relation(fields: [productId], references: [id])
 
+  @@index([serviceId])
   @@index([projectId, sort])
   @@map("project_quote_item")
 }
@@ -971,13 +976,13 @@ model ProjectProgress {
 // 商品订单表：保存订单金额、支付、退款及履约状态
 model ProductOrder {
   /// 客户确认截止时间，安装完工后开始计算
-  confirmationDeadlineAt DateTime? @map("confirmation_deadline_at")
+  confirmationDeadlineAt DateTime?            @map("confirmation_deadline_at")
   /// 订单最终完成方式，历史订单为空
-  completionType OrderCompletionType? @map("completion_type")
+  completionType         OrderCompletionType? @map("completion_type")
   /// 线下争议处理期间暂停自动完成
-  autoCompletionPaused Boolean @default(false) @map("auto_completion_paused")
+  autoCompletionPaused   Boolean              @default(false) @map("auto_completion_paused")
   /// Installation booking selected before payment; nullable for legacy orders.
-  appointmentDate DateTime? @map("appointment_date") @db.Date
+  appointmentDate        DateTime?            @map("appointment_date") @db.Date
 
   timeSlot        String?            @map("time_slot") @db.VarChar(11)
   /// 主键 ID
@@ -1085,51 +1090,51 @@ model ProductOrderItem {
 // 安装服务单表：保存商品订单的安装预约及服务过程
 model InstallationOrder {
   /// 客户主动确认时间，与安装完工时间区分
-  customerConfirmedAt DateTime? @map("customer_confirmed_at")
+  customerConfirmedAt DateTime?          @map("customer_confirmed_at")
   /// 线下安装人员或团队名称，不关联员工账号
-  installerName     String?            @map("installer_name") @db.VarChar(100)
+  installerName       String?            @map("installer_name") @db.VarChar(100)
   /// 安装联系电话
-  installerPhone    String?            @map("installer_phone") @db.VarChar(32)
+  installerPhone      String?            @map("installer_phone") @db.VarChar(32)
   /// 安装备注
-  remark            String?            @db.VarChar(1000)
+  remark              String?            @db.VarChar(1000)
   /// 主键 ID
-  id                Int                @id @default(autoincrement())
+  id                  Int                @id @default(autoincrement())
   /// 安装服务单编号
-  serviceNo         String             @unique @map("service_no") @db.VarChar(64)
+  serviceNo           String             @unique @map("service_no") @db.VarChar(64)
   /// 关联商品订单 ID
-  orderId           Int                @unique @map("order_id")
+  orderId             Int                @unique @map("order_id")
   /// 负责员工 ID
-  employeeId        Int?               @map("employee_id")
+  employeeId          Int?               @map("employee_id")
   /// 客户姓名
-  customerName      String             @map("customer_name")
+  customerName        String             @map("customer_name")
   /// 手机号码
-  mobile            String
+  mobile              String
   /// 服务地址快照
-  serviceAddress    String             @map("service_address")
+  serviceAddress      String             @map("service_address")
   /// 预约安装日期
-  appointmentDate   DateTime?          @map("appointment_date")
+  appointmentDate     DateTime?          @map("appointment_date")
   /// 预约时段
-  timeSlot          String?            @map("time_slot")
+  timeSlot            String?            @map("time_slot")
   /// 派单时间
-  assignedAt        DateTime?          @map("assigned_at")
+  assignedAt          DateTime?          @map("assigned_at")
   /// 接单时间
-  acceptedAt        DateTime?          @map("accepted_at")
+  acceptedAt          DateTime?          @map("accepted_at")
   /// 上门时间
-  visitedAt         DateTime?          @map("visited_at")
+  visitedAt           DateTime?          @map("visited_at")
   /// 安装服务记录
-  serviceRecord     String?            @map("service_record") @db.Text
+  serviceRecord       String?            @map("service_record") @db.Text
   /// 完工图片列表
-  completionImages  Json?              @map("completion_images")
+  completionImages    Json?              @map("completion_images")
   /// 客户是否确认完成
-  customerConfirmed Boolean            @default(false) @map("customer_confirmed")
+  customerConfirmed   Boolean            @default(false) @map("customer_confirmed")
   /// 安装服务状态
-  status            InstallationStatus @default(PENDING_APPOINTMENT)
+  status              InstallationStatus @default(PENDING_APPOINTMENT)
   /// 完成时间
-  completedAt       DateTime?          @map("completed_at")
+  completedAt         DateTime?          @map("completed_at")
   /// 创建时间
-  createdAt         DateTime           @default(now()) @map("created_at")
+  createdAt           DateTime           @default(now()) @map("created_at")
   /// 更新时间
-  updatedAt         DateTime           @updatedAt @map("updated_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
 
   /// 关联商品订单
   order    ProductOrder @relation(fields: [orderId], references: [id])
@@ -1325,10 +1330,6 @@ model Feedback {
   type        String
   /// 内容
   content     String         @db.Text
-  /// 附件列表
-  attachments Json?
-  /// 备用联系方式
-  contact     String?
   /// 反馈处理状态
   status      FeedbackStatus @default(PENDING)
   /// 后台回复内容

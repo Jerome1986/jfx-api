@@ -199,14 +199,15 @@ export class EmployeeService {
         if (productIds.length && await tx.product.count({ where: { id: { in: productIds } } }) !== productIds.length) {
           throw new BadRequestException('报价明细包含不存在的商品')
         }
+        await this.validateQuoteServices(dto.quoteItems, tx)
         await tx.renovationProject.update({
           where: { id, employeeId: project.employeeId!, status: 'PENDING_CONFIRM', quoteVersion: dto.quoteVersion },
           data: { planId: dto.planId, quotedAmount, quoteVersion: { increment: 1 }, quoteRemark: dto.quoteRemark?.trim() || null, updatedAt: new Date() },
         })
         await tx.projectQuoteItem.deleteMany({ where: { projectId: id } })
         await tx.projectQuoteItem.createMany({ data: dto.quoteItems.map((item, sort) => ({
-          projectId: id, sort, productId: item.productId, category: item.category, name: item.name,
-          description: item.description, image: item.image, unit: item.unit, unitPrice: item.unitPrice, quantity: item.quantity,
+          projectId: id, sort, productId: item.productId, serviceId: item.serviceId, category: item.category, name: item.name,
+          description: item.description, image: item.image, unit: item.unit ?? '', unitPrice: item.unitPrice, quantity: item.quantity,
         })) })
         return tx.renovationProject.findUniqueOrThrow({ omit: legacyProjectOmit, where: { id }, include: { plan: true, quoteItems: { orderBy: [{ sort: 'asc' }, { id: 'asc' }] } } })
       })
@@ -267,6 +268,12 @@ export class EmployeeService {
     }
   }
 
+  private async validateQuoteServices(items: { productId?: number | null; serviceId?: number | null }[], tx: Prisma.TransactionClient = this.prisma) {
+    if (items.some(item => item.productId != null && item.serviceId != null)) throw new BadRequestException('报价明细不能同时关联商品和服务')
+    const serviceIds = [...new Set(items.flatMap(item => item.serviceId == null ? [] : [item.serviceId]))]
+    if (serviceIds.length && await tx.constructionService.count({ where: { id: { in: serviceIds } } }) !== serviceIds.length) throw new BadRequestException('报价包含不存在的服务')
+  }
+
   // 员工创建装修项目
   async CreateProject(createProjectDto: CreateProjectDto, user: UserJwtPayload) {
     if (user.type !== 'user') throw new ForbiddenException('仅员工用户可操作装修订单')
@@ -317,6 +324,8 @@ export class EmployeeService {
       userId = appointment.userId
     }
 
+    await this.validateQuoteServices(createProjectDto.quoteItems)
+
     // 4.创建装修项目 + 明细
     const quotedAmount = projectQuoteTotal(createProjectDto.quoteItems)
 
@@ -335,6 +344,7 @@ export class EmployeeService {
       quoteItems: {
         create: createProjectDto.quoteItems.map((item, index) => ({
           ...item,
+          unit: item.unit ?? '',
           sort: index,
         })),
       },

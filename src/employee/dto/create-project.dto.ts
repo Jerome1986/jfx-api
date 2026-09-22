@@ -1,5 +1,9 @@
 // 文件说明：员工创建装修项目及报价明细的请求 DTO。
-import { Type } from 'class-transformer'
+import {
+  ExclusiveQuoteSource,
+  shouldValidateQuoteUnit,
+} from '../../renovation-project/quote-item-validation'
+import { Transform, Type } from 'class-transformer'
 import {
   ArrayMinSize,
   IsArray,
@@ -13,14 +17,25 @@ import {
   MaxLength,
   Min,
   ValidateNested,
+  Validate,
+  ValidateIf,
+  Max,
 } from 'class-validator'
 
 // 项目明细参数
 export class CreateProjectQuoteItemDto {
   @IsOptional()
+  @Validate(ExclusiveQuoteSource)
+  @Max(2147483647)
   @IsInt({ message: '商品ID必须是整数' })
   @Min(1, { message: '商品ID必须大于0' })
   productId?: number | null
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(2147483647)
+  serviceId?: number | null
 
   @IsString({ message: '业务分类必须是字符串' })
   @IsNotEmpty({ message: '业务分类不能为空' })
@@ -42,10 +57,12 @@ export class CreateProjectQuoteItemDto {
   @MaxLength(191, { message: '报价项目图片不能超过191个字符' })
   image?: string | null
 
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @ValidateIf(shouldValidateQuoteUnit)
   @IsString({ message: '计价单位必须是字符串' })
   @IsNotEmpty({ message: '计价单位不能为空' })
   @MaxLength(191, { message: '计价单位不能超过191个字符' })
-  unit: string
+  unit?: string | null
 
   @IsString({ message: '单价必须是字符串' })
   @Matches(/^(?:0|[1-9]\d{0,7})(?:\.\d{1,2})?$/, {

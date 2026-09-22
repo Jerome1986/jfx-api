@@ -45,10 +45,11 @@ export function toAdminProject(project: Project, detail = true) {
     items: project.quoteItems.map((item) => ({
       id: item.id,
       productId: item.productId,
+      serviceId: item.serviceId ?? null,
       category: item.category,
       name: item.name,
       description: item.description,
-      unit: item.unit,
+      unit: item.unit || null,
       unitPrice: item.unitPrice.toFixed(2),
       quantity: item.quantity.toString(),
       amount: projectLineAmount(item).toFixed(2),

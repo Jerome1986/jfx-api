@@ -1,3 +1,7 @@
+import {
+  ExclusiveQuoteSource,
+  shouldValidateQuoteUnit,
+} from '../quote-item-validation'
 import { Transform, Type } from 'class-transformer'
 import {
   ArrayMinSize,
@@ -13,6 +17,8 @@ import {
   Min,
   MinLength,
   ValidateNested,
+  Validate,
+  ValidateIf,
   IsISO8601,
 } from 'class-validator'
 import { OmitType, PartialType, PickType } from '@nestjs/mapped-types'
@@ -140,6 +146,7 @@ export class AdminQuoteItemDto extends OmitType(CreateProjectQuoteItemDto, [
   @IsInt()
   @Min(1)
   @Max(2147483647)
+  @Validate(ExclusiveQuoteSource)
   declare productId?: number | null
 
   @IsIn(['主材', '人工', '辅材'])
@@ -155,7 +162,8 @@ export class AdminQuoteItemDto extends OmitType(CreateProjectQuoteItemDto, [
   @IsString()
   @MinLength(1)
   @MaxLength(191)
-  declare unit: string
+  @ValidateIf(shouldValidateQuoteUnit)
+  declare unit?: string | null
 
   @IsOptional()
   @IsInt()

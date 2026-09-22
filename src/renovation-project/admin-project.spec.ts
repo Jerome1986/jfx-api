@@ -25,6 +25,7 @@ const item = {
   unitPrice: '100.00',
   quantity: '20',
   productId: null,
+  serviceId: null,
   description: null,
   image: null,
   sort: 1,
@@ -242,6 +243,7 @@ describe('后台装修项目业务', () => {
       user: { findUnique: jest.fn().mockResolvedValue({ id: 20 }) },
       renewalPlan: { findUnique: jest.fn().mockResolvedValue({ id: 5 }) },
       product: { count: jest.fn().mockResolvedValue(1) },
+      constructionService: { count: jest.fn().mockResolvedValue(1) },
       projectQuoteItem: { deleteMany: jest.fn(), createMany: jest.fn() },
       followUp: {
         create: jest.fn().mockResolvedValue({
@@ -375,6 +377,59 @@ describe('后台装修项目业务', () => {
       expect(tx.projectQuoteItem.deleteMany).not.toHaveBeenCalled()
     },
   )
+  it('保存商品时允许空单位，后台返回 null 且保留商品关联', async () => {
+    const productItem = { ...item, productId: 100, unit: null }
+    tx.renovationProject.findUnique
+      .mockResolvedValueOnce(project())
+      .mockResolvedValue(
+        project({ quoteItems: [{ ...row, productId: 100, unit: '' }] }),
+      )
+    const result = await service.quotation(1, {
+      quoteVersion: 1,
+      items: [productItem],
+    })
+    expect(tx.projectQuoteItem.createMany).toHaveBeenCalledWith({
+      data: [{ ...productItem, unit: '', projectId: 1 }],
+    })
+    expect(result).toMatchObject({
+      items: [
+        expect.objectContaining({
+          productId: 100,
+          serviceId: null,
+          unit: null,
+          amount: '2000.00',
+        }),
+      ],
+    })
+  })
+
+  it('保存服务保留单位快照及服务关联，金额仅由单价和数量计算', async () => {
+    const serviceItem = {
+      ...item,
+      serviceId: 8,
+      category: '人工',
+      unit: '㎡',
+      unitPrice: '50.00',
+      quantity: '20',
+    }
+    await service.quotation(1, { quoteVersion: 1, items: [serviceItem] })
+    expect(tx.constructionService.count).toHaveBeenCalledWith({
+      where: { id: { in: [8] } },
+    })
+    expect(tx.projectQuoteItem.createMany).toHaveBeenCalledWith({
+      data: [{ ...serviceItem, projectId: 1 }],
+    })
+    expect(
+      tx.renovationProject.update.mock.calls[1][0].data.quotedAmount.toFixed(2),
+    ).toBe('1000.00')
+    tx.constructionService.count.mockResolvedValue(0)
+    tx.projectQuoteItem.deleteMany.mockClear()
+    await expect(
+      service.quotation(1, { quoteVersion: 1, items: [serviceItem] }),
+    ).rejects.toBeInstanceOf(BadRequestException)
+    expect(tx.projectQuoteItem.deleteMany).not.toHaveBeenCalled()
+  })
+
   it('过期报价版本不能覆盖报价', async () => {
     await expect(
       service.quotation(1, { quoteVersion: 2, items: [item] }),

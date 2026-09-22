@@ -126,7 +126,7 @@ export class AdminProjectService {
       throw new BadRequestException('关联方案不存在')
   }
 
-  private async products(
+  private async quoteSources(
     tx: Prisma.TransactionClient,
     items: AdminQuoteItemDto[],
   ) {
@@ -142,15 +142,32 @@ export class AdminProjectService {
       (await tx.product.count({ where: { id: { in: ids } } })) !== ids.length
     )
       throw new BadRequestException('报价包含不存在的商品')
+    if (items.some((item) => item.productId != null && item.serviceId != null))
+      throw new BadRequestException('报价明细不能同时关联商品和服务')
+    const serviceIds = [
+      ...new Set(
+        items.flatMap((item) =>
+          item.serviceId == null ? [] : [item.serviceId],
+        ),
+      ),
+    ]
+    if (
+      serviceIds.length &&
+      (await tx.constructionService.count({
+        where: { id: { in: serviceIds } },
+      })) !== serviceIds.length
+    )
+      throw new BadRequestException('报价包含不存在的服务')
   }
 
   private quoteData(items: AdminQuoteItemDto[]) {
     return items.map((item, index) => ({
       productId: item.productId ?? null,
+      serviceId: item.serviceId ?? null,
       category: item.category,
       name: item.name,
       description: item.description ?? null,
-      unit: item.unit,
+      unit: item.unit ?? '',
       unitPrice: item.unitPrice,
       quantity: item.quantity,
       image: item.image ?? null,
@@ -287,7 +304,7 @@ export class AdminProjectService {
         if (appointment.employeeId != null)
           await this.employee(tx, appointment.employeeId)
         const items = await this.snapshotItems(appointment.snapshot)
-        await this.products(tx, items)
+        await this.quoteSources(tx, items)
         // Also serialize conversion against edits to the source appointment.
         await tx.appointment.update({
           where: {
@@ -355,6 +372,7 @@ export class AdminProjectService {
         throw new BadRequestException('预约报价快照明细无效')
       const item = plainToInstance(AdminQuoteItemDto, {
         productId: raw.productId,
+        serviceId: raw.serviceId,
         category: raw.category,
         name: raw.name,
         description: raw.description,
@@ -380,7 +398,7 @@ export class AdminProjectService {
         project.quoteVersion !== dto.quoteVersion
       )
         throw new ConflictException('项目状态或报价版本已变化，请刷新后重试')
-      await this.products(tx, dto.items)
+      await this.quoteSources(tx, dto.items)
       const updatedAt = await this.lock(tx, project)
       await tx.renovationProject.update({
         where: { id },
