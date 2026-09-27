@@ -2,7 +2,7 @@ import axios from 'axios'
 
 // 请求微信V3支付
 export async function createWechatPay(body, auth) {
-  return axios.post(process.env.PAY_URL as string, body, { headers: { Authorization: auth }, proxy: false })
+  return axios.post(process.env.PAY_URL as string, body, { headers: { Authorization: auth }, timeout: 10000, proxy: false })
 }
 
 // 请求微信退款
@@ -38,6 +38,7 @@ export async function nativeWechatOrder(body, mchid, nonceStr, timestamp, serial
   )
 }
 
+// 获取微信支付签名私钥
 export function getPrivateKey() {
   return `-----BEGIN PRIVATE KEY-----
 MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDGEf3zleyYM++P

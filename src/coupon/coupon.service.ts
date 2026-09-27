@@ -8,10 +8,12 @@ import { QueryCouponDto } from './dto/query-coupon.dto';
 @Injectable()
 export class CouponService {
   constructor(private couponRepo: CouponRepository) { }
+  // 新建优惠券模板
   create(createCouponDto: CreateCouponDto) {
     return this.couponRepo.create(createCouponDto)
   }
 
+  // 获取优惠券列表
   async findAll(query: QueryCouponDto = {}) {
     const pageNum = query.pageNum ?? 1
     const pageSize = query.pageSize ?? 10
@@ -29,14 +31,17 @@ export class CouponService {
     }
   }
 
+  // 获取优惠券详情
   findOne(id: number) {
     return this.couponRepo.findOne(id)
   }
 
+  // 更新优惠券
   update(id: number, updateCouponDto: UpdateCouponDto) {
     return this.couponRepo.update(id, updateCouponDto)
   }
 
+  // 删除优惠券
   async remove(id: number) {
     if (!Number.isInteger(id) || id < 1 || id > 2147483647) {
       throw new BadRequestException('优惠券模板ID必须是1至2147483647之间的整数')

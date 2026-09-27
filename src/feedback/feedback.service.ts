@@ -32,16 +32,14 @@ export class FeedbackService {
             where: { id: user.userId },
             select: { status: true },
           })
-          if (!account?.status)
-            throw new ForbiddenException('用户不存在或已禁用')
+          if (!account?.status) throw new ForbiddenException('用户不存在或已禁用')
 
           // 4. 查询当前用户是否有待处理或处理中的反馈，有则返回 409。
           const pending = await this.feedbackRepo.findOneByUser(
             user.userId,
             tx,
           )
-          if (pending)
-            throw new ConflictException('您有待处理的反馈，请勿重复提交')
+          if (pending) throw new ConflictException('您有待处理的反馈，请勿重复提交')
 
           // 5. 校验通过后生成反馈编号并新增；主键自增，状态默认待处理。
           // 回调成功后事务提交，接口返回新增记录。
@@ -71,19 +69,18 @@ export class FeedbackService {
     }
   }
 
-  findAll() {
-    return `This action returns all feedback`
-  }
+  // 根据用户ID查找是否提交过
+  async findOneByUser(user: UserJwtPayload) {
+    // 1. 校验登录身份：管理员不能通过用户入口提交反馈。
+    if (user.type !== 'user') throw new ForbiddenException('仅用户可提交反馈')
 
-  findOne(id: number) {
-    return `This action returns a #${id} feedback`
-  }
+    // 2. 检查用户是否存在、账号是否启用。
+    const account = await this.prisma.user.findUnique({
+      where: { id: user.userId },
+      select: { status: true },
+    })
+    if (!account?.status) throw new ForbiddenException('用户不存在或已禁用')
 
-  update(id: number, updateFeedbackDto: UpdateFeedbackDto) {
-    return `This action updates a #${id} feedback`
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} feedback`
+    return this.feedbackRepo.findOneByUser(user.userId)
   }
 }

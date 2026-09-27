@@ -12,6 +12,18 @@ export class OrderRepository {
   // 注入数据库服务。
   constructor(private prisma: PrismaService) { }
 
+  // 只读取原订单快照及用户当前微信身份，不重新占用下单资源。
+  findForPayment(id: number, userId: number) {
+    return this.prisma.productOrder.findFirst({
+      where: { id, userId },
+      select: {
+        id: true, orderNo: true, payableAmount: true,
+        status: true, paymentStatus: true, paymentNo: true, paidAt: true,
+        user: { select: { status: true, openid: true } },
+      },
+    })
+  }
+
   // 后台报完工只进入待确认状态，最终完成时间由客户确认或超时任务填写。
   markPendingConfirmation(id: number, confirmationDeadlineAt: Date, tx: Prisma.TransactionClient) {
     return tx.productOrder.updateMany({
@@ -35,6 +47,7 @@ export class OrderRepository {
     }
   }
 
+  // 将客户确认的订单标记为已完成
   markCustomerCompleted(id: number, userId: number, completedAt: Date, tx: Prisma.TransactionClient) {
     return tx.productOrder.updateMany({
       where: { ...this.completionWhere(), id, userId },
@@ -42,6 +55,7 @@ export class OrderRepository {
     })
   }
 
+  // 记录安装单的客户确认状态和时间
   markCustomerConfirmed(orderId: number, customerConfirmedAt: Date, tx: Prisma.TransactionClient) {
     return tx.installationOrder.update({
       where: { orderId, status: 'COMPLETED', customerConfirmed: false },
@@ -58,6 +72,7 @@ export class OrderRepository {
     }
   }
 
+  // 查询确认超时且可自动完成的订单
   findExpiredConfirmations(now: Date, afterId: number, take: number) {
     return this.prisma.productOrder.findMany({
       where: { ...this.autoCompletionWhere(now), id: { gt: afterId } },
@@ -67,6 +82,7 @@ export class OrderRepository {
     })
   }
 
+  // 将确认超时的订单标记为自动完成
   markAutoCompleted(id: number, now: Date, tx: Prisma.TransactionClient) {
     return tx.productOrder.updateMany({
       where: { ...this.autoCompletionWhere(now), id },
@@ -74,6 +90,7 @@ export class OrderRepository {
     })
   }
 
+  // 后台在线下争议处理期间暂停或恢复自动完成。
   setAutoCompletionPaused(id: number, paused: boolean, tx: Prisma.TransactionClient) {
     return tx.productOrder.updateMany({
       where: { id, status: 'PENDING_CONFIRMATION' },

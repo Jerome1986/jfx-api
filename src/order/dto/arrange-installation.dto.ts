@@ -1,6 +1,7 @@
 import { Transform } from 'class-transformer'
 import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator'
 
+// 去除文本首尾空白
 const trim = ({ value }: { value: unknown }) => typeof value === 'string' ? value.trim() : value
 
 export class ArrangeInstallationDto {

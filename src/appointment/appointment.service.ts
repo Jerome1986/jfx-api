@@ -8,6 +8,8 @@ import {
   UnauthorizedException,
 } from '@nestjs/common'
 import { Decimal, PrismaClientKnownRequestError } from '@prisma/client/runtime/client'
+import { Prisma } from '../../generated/prisma/client'
+import { PrismaService } from '../prisma/prisma.service'
 import { randomBytes } from 'node:crypto'
 import { AdminRole, AppointmentStatus, AppointmentType } from '../../generated/prisma/enums'
 import { AppointmentRepository } from './appointment.repository'
@@ -26,6 +28,7 @@ import { UpdateAppointmentRequirementDto } from './dto/update-appointment-requir
 export class AppointmentService {
   constructor(
     private readonly appointmentRepo: AppointmentRepository,
+    private readonly prisma: PrismaService,
   ) { }
 
   // 创建焕新方案预约
@@ -75,20 +78,47 @@ export class AppointmentService {
 
   // 创建案例报价预约，校验用户和案例并避免重复提交
   async createCaseAppointment(dto: CreateCaseAppointmentDto, payload: UserJwtPayload) {
+    // 1：校验登录用户及账号状态，使用账号手机号作为预约联系方式。
     const user = await this.getAvailableUser(payload.userId)
+    // 2：校验案例已发布，未发布或已下线的案例不允许预约。
     const renovationCase = await this.appointmentRepo.findPublishedCase(dto.caseId)
     if (!renovationCase) throw new NotFoundException('装修案例不存在或已下线')
 
     try {
-      const appointment = await this.appointmentRepo.createCaseAppointment({
-        appointmentNo: this.generateAppointmentNo(),
-        userId: user.id,
-        caseId: renovationCase.id,
-        mobile: user.mobile,
-      })
-      if (!appointment) throw new ConflictException('您有该案例待联系或待上门的预约，请勿重复提交')
+      // 3：在串行化事务中完成查重、员工分配、咨询计数和预约创建。
+      // 并发提交发生事务冲突时返回重试提示；任一步骤失败均回滚写入。
+      const appointment = await this.prisma.$transaction(async (tx) => {
+        // 3.1 同一用户、同一案例存在待联系或待上门预约时，禁止重复提交。
+        const existing = await this.appointmentRepo.findActiveCaseAppointment(user.id, renovationCase.id, tx)
+        if (existing) throw new ConflictException('您有该案例待联系或待上门的预约，请勿重复提交')
+
+        // 3.2 分享员工及关联账号均启用且角色为员工时，自动分配给该员工。
+        // 未传员工或员工不可用时，保留预约并设为待分配。
+        const employee = dto.employeeId === undefined
+          ? null
+          : await this.appointmentRepo.findCaseAppointmentEmployee(dto.employeeId, tx)
+        const employeeId = employee?.status && employee.user?.status && employee.user.role === 'EMPLOYEE'
+          ? employee.id
+          : null
+
+        // 3.3 增加案例咨询次数，写入时再次限制已发布状态，防止案例中途下线。
+        await this.appointmentRepo.incrementCaseQuoteCount(renovationCase.id, tx)
+        // 3.4 生成预约编号，保存案例预约及负责人，初始状态为待联系。
+        return this.appointmentRepo.createCaseAppointment({
+          appointmentNo: this.generateAppointmentNo(),
+          userId: user.id,
+          caseId: renovationCase.id,
+          employeeId,
+          mobile: user.mobile,
+          type: 'CASE',
+          source: '装修案例',
+          status: 'PENDING_CONTACT',
+        }, tx)
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
+      // 4：事务提交成功后，返回预约 ID 和编号。
       return { appointmentId: appointment.id, appointmentNo: appointment.appointmentNo }
     } catch (error) {
+      // 5：将案例下线和并发事务冲突转换为业务异常，其他异常继续抛出。
       if (error instanceof PrismaClientKnownRequestError) {
         if (error.code === 'P2025') throw new NotFoundException('装修案例不存在或已下线')
         if (error.code === 'P2034') throw new ConflictException('预约提交冲突，请刷新后重试')
@@ -221,11 +251,11 @@ export class AppointmentService {
     const appointmentType = type && type !== 'ALL' ? type : undefined
     const [[list, total], counts] = await Promise.all([
       this.appointmentRepo.getAssignedAppointments(
-      employee.id,
-      pageNum,
-      pageSize,
-      appointmentType,
-      status && status !== 'ALL' ? status : undefined,
+        employee.id,
+        pageNum,
+        pageSize,
+        appointmentType,
+        status && status !== 'ALL' ? status : undefined,
       ),
       this.appointmentRepo.countAssignedAppointmentsByStatus(employee.id, appointmentType),
     ])

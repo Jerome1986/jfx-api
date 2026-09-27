@@ -12,6 +12,7 @@ export class RenovationProjectService {
     private renovationProjectRepo: RenovationProjectRepository
   ) { }
 
+  // 新增装修项目（占位接口）
   create(createRenovationProjectDto: CreateRenovationProjectDto) {
     return 'This action adds a new renovationProject';
   }
@@ -65,6 +66,7 @@ export class RenovationProjectService {
     }
   }
 
+  // 删除装修项目（占位接口）
   remove(id: number) {
     return `This action removes a #${id} renovationProject`;
   }

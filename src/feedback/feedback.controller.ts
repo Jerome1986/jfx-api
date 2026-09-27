@@ -11,29 +11,16 @@ export class FeedbackController {
   constructor(private readonly feedbackService: FeedbackService) { }
 
   // 用户提交建议
-  @Post()
+  @Post('submit')
   @UseGuards(UserJwtGuard)
   create(@Body() createFeedbackDto: CreateFeedbackDto, @CurrentUser('user') user: UserJwtPayload) {
     return this.feedbackService.create(createFeedbackDto, user)
   }
 
-  @Get()
-  findAll() {
-    return this.feedbackService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.feedbackService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateFeedbackDto: UpdateFeedbackDto) {
-    return this.feedbackService.update(+id, updateFeedbackDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.feedbackService.remove(+id);
+  // 根据用户ID查找是否提交过
+  @Get('user')
+  @UseGuards(UserJwtGuard)
+  findOneByUser(@CurrentUser('user') user: UserJwtPayload) {
+    return this.feedbackService.findOneByUser(user)
   }
 }

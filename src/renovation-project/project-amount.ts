@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common'
 import { Prisma } from '../../generated/prisma/client'
 
+// 计算单项报价金额
 export function projectLineAmount(item: {
   unitPrice: string | Prisma.Decimal
   quantity: string | Prisma.Decimal
@@ -10,6 +11,7 @@ export function projectLineAmount(item: {
     .toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP)
 }
 
+// 计算装修项目报价总额
 export function projectQuoteTotal(
   items: {
     unitPrice: string | Prisma.Decimal

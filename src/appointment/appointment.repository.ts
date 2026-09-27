@@ -27,29 +27,33 @@ export class AppointmentRepository {
     })
   }
 
-  // 在事务中检查重复案例预约、累计咨询次数并创建预约
-  createCaseAppointment(data: { appointmentNo: string; userId: number; caseId: number; mobile: string }) {
-    return this.prisma.$transaction(async (tx) => {
-      const existing = await tx.appointment.findFirst({
-        where: {
-          userId: data.userId,
-          caseId: data.caseId,
-          type: 'CASE',
-          status: { in: ['PENDING_CONTACT', 'PENDING_VISIT'] },
-        },
-        select: { id: true },
-      })
-      if (existing) return null
+  // 查询同一用户、案例下尚未结束的预约
+  findActiveCaseAppointment(userId: number, caseId: number, tx: Prisma.TransactionClient) {
+    return tx.appointment.findFirst({
+      where: { userId, caseId, type: 'CASE', status: { in: ['PENDING_CONTACT', 'PENDING_VISIT'] } },
+      select: { id: true },
+    })
+  }
 
-      await tx.renovationCase.update({
-        where: { id: data.caseId, status: 'PUBLISHED' },
-        data: { quoteCount: { increment: 1 } },
-      })
-      return tx.appointment.create({
-        data: { ...data, type: 'CASE', source: '装修案例', status: 'PENDING_CONTACT' },
-        select: { id: true, appointmentNo: true },
-      })
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
+  // 查询分享员工及关联账号状态
+  findCaseAppointmentEmployee(id: number, tx: Prisma.TransactionClient) {
+    return tx.employee.findUnique({
+      where: { id },
+      select: { id: true, status: true, user: { select: { status: true, role: true } } },
+    })
+  }
+
+  // 原子增加已发布案例的咨询次数
+  incrementCaseQuoteCount(id: number, tx: Prisma.TransactionClient) {
+    return tx.renovationCase.update({
+      where: { id, status: 'PUBLISHED' },
+      data: { quoteCount: { increment: 1 } },
+    })
+  }
+
+  // 保存案例预约记录
+  createCaseAppointment(data: Prisma.AppointmentUncheckedCreateInput, tx: Prisma.TransactionClient) {
+    return tx.appointment.create({ data, select: { id: true, appointmentNo: true } })
   }
 
   // 查询已发布方案的预约所需信息

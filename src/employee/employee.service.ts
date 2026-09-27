@@ -152,6 +152,7 @@ export class EmployeeService {
     return project
   }
 
+  // 员工取消负责的装修项目
   async cancelProject(id: number, dto: CancelProjectDto, user: UserJwtPayload) {
     const project = await this.findProject(id, user)
     if (!['PENDING_CONFIRM', 'IN_SERVICE'].includes(project.status) || project.status !== dto.expectedStatus) {
@@ -268,6 +269,7 @@ export class EmployeeService {
     }
   }
 
+  // 校验报价明细关联的商品和施工服务
   private async validateQuoteServices(items: { productId?: number | null; serviceId?: number | null }[], tx: Prisma.TransactionClient = this.prisma) {
     if (items.some(item => item.productId != null && item.serviceId != null)) throw new BadRequestException('报价明细不能同时关联商品和服务')
     const serviceIds = [...new Set(items.flatMap(item => item.serviceId == null ? [] : [item.serviceId]))]

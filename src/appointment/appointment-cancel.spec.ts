@@ -11,7 +11,7 @@ for (const type of ['PLAN', 'BUDGET', 'CASE']) {
         findAppointmentForCancel: jest.fn().mockResolvedValue(appointment),
         cancelAppointment: jest.fn().mockResolvedValue({ ...appointment, status: 'CANCELED' }),
       }
-      return { repo, service: new AppointmentService(repo as unknown as AppointmentRepository) }
+      return { repo, service: new AppointmentService(repo as unknown as AppointmentRepository, {} as never) }
     }
     it.each(['PENDING_CONTACT', 'PENDING_VISIT'])('%s 可以取消', async status => {
       const { service, repo } = setup(status)
@@ -34,7 +34,7 @@ for (const type of ['PLAN', 'BUDGET', 'CASE']) {
   })
 }
 it('不存在的预约不能取消', async () => {
-  const service = new AppointmentService({ findAppointmentForCancel: async () => null } as unknown as AppointmentRepository)
+  const service = new AppointmentService({ findAppointmentForCancel: async () => null } as unknown as AppointmentRepository, {} as never)
   await expect(service.cancelAppointment(999)).rejects.toMatchObject({ status: 404 })
 })
 it('取消写入必须带活动状态条件，防止覆盖已完成状态', async () => {

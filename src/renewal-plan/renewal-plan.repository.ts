@@ -8,6 +8,7 @@ import { UpdateRenewalPlanDto } from './dto/update-renewal-plan.dto'
 export class RenewalPlanRepository {
   constructor(private prisma: PrismaService) {}
 
+  // 新增焕新方案
   create(createRenewalPlanDto: CreateRenewalPlanDto) {
     const { items, ...planData } = createRenewalPlanDto
 
@@ -21,6 +22,7 @@ export class RenewalPlanRepository {
     })
   }
 
+  // 获取全部焕新方案
   findAll() {
     return this.prisma.renewalPlan.findMany({
       include: {
@@ -33,6 +35,7 @@ export class RenewalPlanRepository {
     })
   }
 
+  // 获取焕新方案详情
   findOne(id: number) {
     return this.prisma.renewalPlan.findUnique({
       where: { id },
@@ -45,6 +48,7 @@ export class RenewalPlanRepository {
     })
   }
 
+  // 更新焕新方案
   update(id: number, updateRenewalPlanDto: UpdateRenewalPlanDto) {
     const { items, ...planData } = updateRenewalPlanDto
 
@@ -62,6 +66,7 @@ export class RenewalPlanRepository {
     })
   }
 
+  // 删除焕新方案
   remove(id: number) {
     return this.prisma.renewalPlan.delete({ where: { id } })
   }

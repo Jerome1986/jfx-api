@@ -16,6 +16,33 @@ import { QueryAllDto } from './dto/query-all.dto';
 export class OrderService {
   private readonly logger = new Logger(OrderService.name)
 
+  private validatePayment(order: Awaited<ReturnType<OrderRepository['findForPayment']>>) {
+    if (!order) throw new NotFoundException('订单不存在')
+    if (order.status !== 'PENDING_PAYMENT' || order.paymentStatus !== 'UNPAID' ||
+        order.paymentNo !== null || order.paidAt !== null) {
+      throw new ConflictException('订单已支付、已关闭或状态异常，请刷新订单')
+    }
+    if (!order.user.status) throw new ForbiddenException('用户已被禁用')
+    if (!order.user.openid?.trim()) throw new BadRequestException('用户未绑定微信，无法发起微信支付')
+    return { ...order, openid: order.user.openid }
+  }
+
+  // 原订单再次支付：只获取支付参数，实际入账仍由支付回调完成。
+  async pay(id: number, actor: { userId: number; type: 'user' | 'admin' }) {
+    if (actor.type !== 'user') throw new ForbiddenException('仅客户端用户可支付自己的订单')
+    if (!Number.isInteger(id) || id <= 0 || id > 2147483647) {
+      throw new BadRequestException('订单ID必须是有效的正整数')
+    }
+    const order = this.validatePayment(await this.orderRepo.findForPayment(id, actor.userId))
+    // 外部请求不占用数据库事务，始终使用原商户订单号及订单金额快照。
+    const payRes = await this.wxPayRepo.wxPay(
+      '商品订单', order.orderNo, order.openid, order.payableAmount.mul(100).toNumber(),
+    )
+    // 取消或支付回调可能已在微信请求期间完成，返回前再次核对。
+    this.validatePayment(await this.orderRepo.findForPayment(id, actor.userId))
+    return { ...payRes, orderId: order.id }
+  }
+
   // 后台报完工：安装单完成，订单进入待客户确认状态。
   async completeInstallation(id: number, actor: { userId: number; type: 'user' | 'admin' }) {
     if (actor.type !== 'admin') throw new ForbiddenException('仅后台管理员可确认安装完成')
@@ -185,6 +212,7 @@ export class OrderService {
         // 1. 重新查询并校验订单状态，已取消则直接返回。
         const current = this.validateCancellation(await this.orderRepo.findForCancellation(where, tx))
         if (current.status === 'CANCELED') return current
+
         // 2. 按未支付条件取消订单；更新失败时核对是否已被其他请求取消。
         const changed = await this.orderRepo.markCanceled(where, tx)
         if (changed.count !== 1) {
@@ -192,6 +220,7 @@ export class OrderService {
           if (latest?.status === 'CANCELED' && latest.paymentStatus === 'CLOSED') return latest
           throw new ConflictException('订单状态已变化，无法取消')
         }
+
         // 3. 合并同一商品的数量，跳过已删除商品，按商品编号顺序返还库存并记录流水。
         const quantities = new Map<number, number>()
         for (const item of current.items) {
@@ -200,12 +229,15 @@ export class OrderService {
         for (const [productId, quantity] of [...quantities].sort(([a], [b]) => a - b)) {
           await this.orderRepo.restoreStock(productId, quantity, current.orderNo, actor.type + ':' + actor.userId, tx)
         }
+
         // 4. 返还订单抵扣的积分并记录流水，未使用积分则跳过。
         if (current.pointsUsed > 0) {
           await this.orderRepo.restorePoints(current.userId, current.pointsUsed, current.orderNo, tx)
         }
+
         // 5. 解除订单对未使用优惠券的占用。
         await this.orderRepo.releaseCoupon(current.id, current.userId, tx)
+
         // 6. 查询并返回取消后的订单，以上数据库操作统一提交或回滚。
         return this.orderRepo.findForCancellation(where, tx)
       }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted })

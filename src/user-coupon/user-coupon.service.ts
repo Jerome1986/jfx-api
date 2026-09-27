@@ -49,14 +49,17 @@ export class UserCouponService {
     return this.userCouponRepo.findAll()
   }
 
+  // 获取用户优惠券详情（占位方法）
   findOne(id: number) {
     return `This action returns a #${id} userCoupon`;
   }
 
+  // 更新用户优惠券（占位方法）
   update(id: number, updateUserCouponDto: UpdateUserCouponDto) {
     return `This action updates a #${id} userCoupon`;
   }
 
+  // 删除用户优惠券（占位方法）
   remove(id: number) {
     return `This action removes a #${id} userCoupon`;
   }

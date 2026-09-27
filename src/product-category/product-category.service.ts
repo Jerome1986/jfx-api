@@ -8,26 +8,32 @@ import { ProductCategoryRepository } from './product-category.repository'
 export class ProductCategoryService {
   constructor(private productCategoryRepo: ProductCategoryRepository) { }
 
+  // 新增分类
   create(createProductCategoryDto: CreateProductCategoryDto) {
     return this.productCategoryRepo.create(createProductCategoryDto)
   }
 
+  // 获取分类树
   findAll(sourceClient: string) {
     return this.productCategoryRepo.findAll(sourceClient)
   }
 
+  // 获取分类详情
   findOne(id: number) {
     return this.productCategoryRepo.findOne(id)
   }
 
+  // 更新分类
   update(id: number, updateProductCategoryDto: UpdateProductCategoryDto) {
     return this.productCategoryRepo.update(id, updateProductCategoryDto)
   }
 
+  // 启用或禁用分类
   updateStatus(id: number, isEnabled: boolean) {
     return this.productCategoryRepo.updateStatus(id, isEnabled)
   }
 
+  // 删除分类
   remove(id: number) {
     return this.productCategoryRepo.remove(id)
   }

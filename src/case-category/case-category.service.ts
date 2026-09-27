@@ -35,6 +35,7 @@ export class CaseCategoryService {
     }
   }
 
+  // 更新分类
   update(id: number, updateCaseCategoryDto: UpdateCaseCategoryDto) {
     return this.caseCategoryRepo.update(id, updateCaseCategoryDto)
   }
@@ -44,6 +45,7 @@ export class CaseCategoryService {
     return this.caseCategoryRepo.updateStatus(id, isEnabled)
   }
 
+  // 删除分类
   remove(id: number) {
     return this.caseCategoryRepo.remove(id)
   }

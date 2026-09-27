@@ -11,6 +11,7 @@ import { ConfirmProjectDto } from './dto/confirm-project.dto';
 export class RenovationProjectController {
   constructor(private readonly renovationProjectService: RenovationProjectService) { }
 
+  // 新增装修项目（占位接口）
   @Post()
   create(@Body() createRenovationProjectDto: CreateRenovationProjectDto) {
     return this.renovationProjectService.create(createRenovationProjectDto);
@@ -40,6 +41,7 @@ export class RenovationProjectController {
     return this.renovationProjectService.confirmProject(id, user, dto)
   }
 
+  // 删除装修项目（占位接口）
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.renovationProjectService.remove(+id);

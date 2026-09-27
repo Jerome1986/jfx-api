@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, ParseIntPipe, UseGuards, Query } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, ParseIntPipe, UseGuards, Query, HttpCode } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UserJwtGuard } from 'src/common/auth/guards/user-jwt.guard';
@@ -15,6 +15,14 @@ export class OrderController {
   constructor(
     private readonly orderService: OrderService,
   ) { }
+  // 使用已有未支付订单重新获取微信支付参数，无请求体。
+  @Post(':id/pay')
+  @HttpCode(200)
+  @UseGuards(UserJwtGuard)
+  pay(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: UserJwtPayload) {
+    return this.orderService.pay(id, user)
+  }
+
   // 取消订单
   @Patch(':id/cancel')
   @UseGuards(UserJwtGuard)
@@ -41,6 +49,7 @@ export class OrderController {
   ) {
     return this.orderService.orderFindAllByUser(queryOrderDto, user)
   }
+  // 获取当前用户的订单详情
   @Get('detail/:id')
   @UseGuards(UserJwtGuard)
   findOneByUser(

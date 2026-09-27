@@ -13,6 +13,7 @@ import { SKIP_RESPONSE_WRAP_KEY } from '../decorators/raw-response.decorator';
 export class ResponseInterceptor implements NestInterceptor {
   constructor(private readonly reflector: Reflector) {}
 
+  // 按接口配置统一封装响应数据
   intercept(context: ExecutionContext, next: CallHandler) {
     const skip = this.reflector.getAllAndOverride<boolean>(
       SKIP_RESPONSE_WRAP_KEY,

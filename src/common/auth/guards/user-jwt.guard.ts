@@ -14,6 +14,7 @@ import type {
 export class UserJwtGuard implements CanActivate {
   constructor(private readonly jwtService: JwtService) { }
 
+  // 校验登录令牌并写入当前用户信息
   async canActivate(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest<AuthenticatedUserRequest>()
     console.log('后端', request.headers)

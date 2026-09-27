@@ -10,6 +10,7 @@ import { PrismaService } from '../prisma/prisma.service'
 export class AdminProjectGuard implements CanActivate {
   constructor(private readonly prisma: PrismaService) {}
 
+  // 校验后台管理员的装修项目操作权限
   async canActivate(context: ExecutionContext) {
     const actor = context.switchToHttp().getRequest().user
     if (actor?.type !== 'admin')

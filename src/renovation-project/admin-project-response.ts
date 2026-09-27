@@ -13,6 +13,7 @@ type Project = Prisma.RenovationProjectGetPayload<{
   include: typeof adminProjectInclude
 }>
 
+// 转换后台装修项目响应数据
 export function toAdminProject(project: Project, detail = true) {
   const base = {
     id: project.id,
@@ -66,6 +67,7 @@ export function toAdminProject(project: Project, detail = true) {
   }
 }
 
+// 转换装修项目跟进记录
 export function toProjectFollowUp(record: {
   id: number
   appointmentId: number | null

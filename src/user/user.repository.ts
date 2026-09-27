@@ -2,9 +2,12 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "src/prisma/prisma.service";
 import { generateRandomCode } from 'src/utils/random.util'
-import { Prisma } from '../../generated/prisma/client'
+import { PointChangeType, Prisma } from '../../generated/prisma/client'
 import { QueryUserDto } from './dto/query-user.dto'
 import { UpdateUserDto } from './dto/update-user.dto'
+import { QueryScoreDto } from "./dto/query-score-dto";
+import { UserJwtPayload } from "src/common/auth/interfaces/user-jwt-payload.interface";
+import { PointRecordWhereInput } from "../../generated/prisma/models";
 
 const safeUserSelect = {
   id: true,
@@ -25,6 +28,11 @@ const safeUserSelect = {
   status: true,
   createdAt: true,
   updatedAt: true,
+} satisfies Prisma.UserSelect
+
+const loginUserSelect = {
+  ...safeUserSelect,
+  employee: true,
 } satisfies Prisma.UserSelect
 
 @Injectable()
@@ -87,7 +95,7 @@ export class UserRepository {
       where: {
         OR: [{ openid }, { mobile }],
       },
-      select: safeUserSelect,
+      select: loginUserSelect,
     })
   }
 
@@ -205,7 +213,7 @@ export class UserRepository {
         nickname: '微信用户',
         avatar: process.env.DEFAULT_AVATAR,
       },
-      select: safeUserSelect,
+      select: loginUserSelect,
     })
   }
 
@@ -228,16 +236,53 @@ export class UserRepository {
     })
   }
 
+  // 从流水统计，避免依赖尚未同步维护的用户累计字段。
+  scoreSummary(userId: number, start: Date, end: Date) {
+    return Promise.all([
+      this.prisma.pointRecord.aggregate({
+        where: { userId, type: 'INCOME', createdAt: { gte: start, lt: end } },
+        _sum: { change: true },
+      }),
+      this.prisma.pointRecord.aggregate({
+        where: { userId, type: 'INCOME' },
+        _sum: { change: true },
+      }),
+      this.prisma.pointRecord.aggregate({
+        where: { userId, type: 'EXPENSE' },
+        _sum: { change: true },
+      }),
+    ])
+  }
+
+  // 获取用户积分明细
+  async scoreFlow(type: PointChangeType | "ALL", userId: number, pageNum: number, pageSize: number) {
+    let where: PointRecordWhereInput = { userId }
+    if (type !== 'ALL') where.type = type
+
+    return await Promise.all([
+      this.prisma.pointRecord.findMany({
+        where,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        skip: (pageNum - 1) * pageSize,
+        take: pageSize
+      }),
+      this.prisma.pointRecord.count({ where })
+    ])
+  }
+
   // 前端测试接口-用户端账号
   testUser() {
     return this.prisma.user.findFirst({
-      where: { mobile: '15527650094' }
+      where: { mobile: '15527650094' },
+      select: loginUserSelect,
     })
   }
 
+  // 查询开发测试用的员工用户
   testEmployee() {
     return this.prisma.user.findFirst({
-      where: { mobile: '17502175260' }
+      where: { mobile: '17502175260' },
+      select: loginUserSelect,
     })
   }
 }

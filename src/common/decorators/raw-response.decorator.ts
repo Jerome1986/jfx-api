@@ -3,4 +3,5 @@ import { SetMetadata } from '@nestjs/common';
 
 export const SKIP_RESPONSE_WRAP_KEY = 'skipResponseWrap';
 
+// 标记接口直接返回原始响应
 export const RawResponse = () => SetMetadata(SKIP_RESPONSE_WRAP_KEY, true);

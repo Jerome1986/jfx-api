@@ -8,18 +8,22 @@ import { UpdateBannerDto } from './dto/update-banner.dto';
 export class BannerRepository {
   constructor(private prisma: PrismaService) {}
 
+  // 新增轮播图
   create(createBannerDto: CreateBannerDto) {
     return this.prisma.banner.create({ data: createBannerDto });
   }
 
+  // 获取轮播图列表
   findAll() {
     return this.prisma.banner.findMany({ orderBy: { sort: 'asc' } });
   }
 
+  // 获取轮播图详情
   findOne(id: number) {
     return this.prisma.banner.findUnique({ where: { id } });
   }
 
+  // 更新轮播图
   update(id: number, updateBannerDto: UpdateBannerDto) {
     return this.prisma.banner.update({
       where: { id },
@@ -27,6 +31,7 @@ export class BannerRepository {
     });
   }
 
+  // 删除轮播图
   remove(id: number) {
     return this.prisma.banner.delete({ where: { id } });
   }

@@ -7,6 +7,7 @@ import axios from 'axios'
 @Injectable()
 export class PaymentService {
   constructor() { }
+  // 关闭微信支付订单
   async closeOrder(orderNo: string) {
     if (!process.env.MCH_ID || !process.env.SERIALNO) {
       throw new ServiceUnavailableException('微信支付关单配置缺失')
@@ -52,43 +53,49 @@ export class PaymentService {
       },
     }
 
-    // 调用微信支付签名工具类
-    const signer = new WechatSign({
-      mchid: process.env.MCH_ID as string,
-      serialNo: process.env.SERIALNO as string,
-      privateKey: getPrivateKey(),
-    })
-
-    // 生成请求签名（用于调用微信接口）
-    const nonceStr = crypto.randomBytes(16).toString('hex')
-    const timestamp = Math.floor(Date.now() / 1000).toString()
-    const authorization = signer.signRequest(
-      'POST',
-      '/v3/pay/transactions/jsapi',
-      body,
-      timestamp,
-      nonceStr,
-    )
-
     try {
+      // 调用微信支付签名工具类
+      const signer = new WechatSign({
+        mchid: process.env.MCH_ID as string,
+        serialNo: process.env.SERIALNO as string,
+        privateKey: getPrivateKey(),
+      })
+
+      // 生成请求签名（用于调用微信接口）
+      const nonceStr = crypto.randomBytes(16).toString('hex')
+      const timestamp = Math.floor(Date.now() / 1000).toString()
+      const authorization = signer.signRequest(
+        'POST',
+        '/v3/pay/transactions/jsapi',
+        body,
+        timestamp,
+        nonceStr,
+      )
+
       // 调用微信支付接口
       const payRes = await createWechatPay(body, authorization)
 
-      const prepay_id = payRes.data.prepay_id
-      if (!prepay_id) {
-        throw new BadRequestException('微信下单失败')
+      const prepay_id = payRes.data?.prepay_id
+      if (typeof prepay_id !== 'string' || !prepay_id.trim()) {
+        throw new ServiceUnavailableException('微信下单未返回有效支付参数，请稍后重试')
       }
       // 5. 返回给前端的参数-生成前端支付签名（JSAPI）
       return signer.signClient(process.env.APPID as string, timestamp, nonceStr, prepay_id)
     } catch (error) {
       if (axios.isAxiosError(error)) {
-        console.error('微信支付下单失败', {
-          status: error.response?.status,
-          data: error.response?.data,
-        })
+        const code = error.response?.data?.code
+        if (code === 'ORDERPAID') throw new ConflictException('订单已支付，请刷新订单')
+        if (code === 'ORDER_CLOSED' || code === 'ORDERCLOSED') {
+          throw new ConflictException('微信支付订单已关闭，无法继续支付')
+        }
+        if (code === 'OUT_TRADE_NO_USED' || code === 'INVALID_REQUEST') {
+          throw new ConflictException('微信支付订单状态或下单参数冲突，请刷新订单')
+        }
+        if (error.response && error.response.status < 500 && error.response.status !== 429) {
+          throw new BadRequestException('微信支付下单失败，请检查支付信息')
+        }
       }
-      const message = error instanceof Error ? error.message : String(error)
-      throw new BadRequestException(message)
+      throw new ServiceUnavailableException('微信支付暂不可用，请稍后重试')
     }
   }
 }

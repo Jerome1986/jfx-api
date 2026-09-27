@@ -8,12 +8,14 @@ import { UpdateProductCategoryDto } from './dto/update-product-category.dto'
 export class ProductCategoryRepository {
   constructor(private prisma: PrismaService) { }
 
+  // 新增分类
   create(createProductCategoryDto: CreateProductCategoryDto) {
     return this.prisma.productCategory.create({
       data: createProductCategoryDto,
     })
   }
 
+  // 获取分类树
   findAll(sourceClient: string) {
     // 如果是小程序的请求，那么只返回启用的分类
     let where: any = { parentId: null }
@@ -31,6 +33,7 @@ export class ProductCategoryRepository {
     })
   }
 
+  // 获取分类详情
   findOne(id: number) {
     return this.prisma.productCategory.findUnique({
       where: { id },
@@ -42,6 +45,7 @@ export class ProductCategoryRepository {
     })
   }
 
+  // 更新分类
   update(id: number, updateProductCategoryDto: UpdateProductCategoryDto) {
     return this.prisma.productCategory.update({
       where: { id },
@@ -49,6 +53,7 @@ export class ProductCategoryRepository {
     })
   }
 
+  // 启用或禁用分类
   updateStatus(id: number, isEnabled: boolean) {
     return this.prisma.productCategory.update({
       where: { id },
@@ -56,6 +61,7 @@ export class ProductCategoryRepository {
     })
   }
 
+  // 删除分类
   remove(id: number) {
     return this.prisma.productCategory.delete({ where: { id } })
   }

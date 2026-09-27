@@ -49,6 +49,7 @@ export class EmployeeController {
     return this.employeeService.findProject(id, user);
   }
 
+  // 员工取消负责的装修项目
   @Patch('projects/:id/cancel')
   @UseGuards(UserJwtGuard)
   cancelProject(@Param('id', ParseIntPipe) id: number, @Body() dto: CancelProjectDto, @CurrentUser() user: UserJwtPayload) {

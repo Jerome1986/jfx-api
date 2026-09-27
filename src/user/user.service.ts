@@ -8,10 +8,13 @@ import {
 import { WxPhoneLoginDto } from './dto/wx-phone-login.dto';
 import { UserRepository } from './user.repository';
 import { WxUtil } from 'src/utils/wx.util';
+import { getBeijingMonthRange } from 'src/utils/date.util';
 import { JwtService } from '@nestjs/jwt';
 import { QueryUserDto } from './dto/query-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { TestRole } from './user.controller';
+import { QueryScoreDto } from './dto/query-score-dto';
+import { UserJwtPayload } from 'src/common/auth/interfaces/user-jwt-payload.interface';
 
 @Injectable()
 export class UserService {
@@ -116,6 +119,47 @@ export class UserService {
       throw new NotFoundException('用户不存在')
     }
     return summary
+  }
+
+  // 用户积分统计
+  async scoreSummary(user: UserJwtPayload) {
+    if (user.type !== 'user') throw new ForbiddenException('仅用户可查看自己的积分统计')
+    const account = await this.userRepo.findById(user.userId)
+    if (!account) throw new NotFoundException('用户不存在')
+    if (!account.status) throw new ForbiddenException('账号已被禁用')
+    const { start, end } = getBeijingMonthRange()
+    const [monthly, earned, used] = await this.userRepo.scoreSummary(user.userId, start, end)
+    return {
+      // 收入包含取消订单返还积分，支出包含待支付订单占用积分。
+      monthlyPointsEarned: monthly._sum.change ?? 0,
+      totalPointsEarned: earned._sum.change ?? 0,
+      totalPointsUsed: Math.abs(used._sum.change ?? 0),
+      points: account.points,
+    }
+  }
+
+  // 获取用户积分明细
+  async scoreFlow(queryDto: QueryScoreDto, user: UserJwtPayload) {
+    const pageNum = Number(queryDto.pageNum) || 1
+    const pageSize = Number(queryDto.pageSize) || 10
+    const type = queryDto.type
+    const userId = user.userId
+
+    // 1.查询当前用户账号是否被禁用
+    const checkUser = await this.userRepo.findOne(userId)
+    if (!checkUser) throw new NotFoundException('用户不存在')
+    if (!checkUser.status) throw new ForbiddenException('禁止访问')
+
+    // 2.查询
+    const [list, total] = await this.userRepo.scoreFlow(type, userId, pageNum, pageSize)
+
+    return {
+      list,
+      total,
+      pageNum,
+      pageSize,
+      totalPage: Math.ceil(total / pageSize)
+    }
   }
 
   // 测试登录接口

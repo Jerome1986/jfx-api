@@ -4,6 +4,7 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 
+// 初始化并启动应用
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   // ✅ 开启 CORS，解决所有跨域（最简单版）

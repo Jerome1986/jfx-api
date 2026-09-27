@@ -15,16 +15,19 @@ import { ProductService } from './product.service'
 import { CreateProductDto } from './dto/create-product.dto'
 import { UpdateProductDto } from './dto/update-product.dto'
 import { QueryProductDto } from './dto/query-product.dto'
+import { SearchProductDto } from './dto/search-product.dto'
 
 @Controller('product')
 export class ProductController {
-  constructor(private readonly productService: ProductService) {}
+  constructor(private readonly productService: ProductService) { }
 
+  // 新增商品
   @Post('add')
   create(@Body() createProductDto: CreateProductDto) {
     return this.productService.create(createProductDto)
   }
 
+  // 获取商品列表
   @Get()
   findAll(@Query() query: QueryProductDto) {
     return this.productService.findAll(query)
@@ -42,11 +45,19 @@ export class ProductController {
     return this.productService.findAll({ ...query, categoryId })
   }
 
+  // 按商品名称搜索商品
+  @Get('web/search')
+  findByName(@Query() searchProductDto: SearchProductDto) {
+    return this.productService.findByName(searchProductDto)
+  }
+
+  // 获取商品详情
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.productService.findOne(id)
   }
 
+  // 更新商品
   @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
@@ -55,6 +66,7 @@ export class ProductController {
     return this.productService.update(id, updateProductDto)
   }
 
+  // 删除商品
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.productService.remove(id)

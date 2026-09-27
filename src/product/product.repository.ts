@@ -6,6 +6,7 @@ import { UpdateProductDto } from './dto/update-product.dto'
 import { QueryProductDto } from './dto/query-product.dto'
 import { Prisma } from '../../generated/prisma/client'
 
+// 构建商品列表查询条件
 export function productQueryWhere(
   query: QueryProductDto,
 ): Prisma.ProductWhereInput {
@@ -22,21 +23,22 @@ export function productQueryWhere(
       : {}),
     ...(contains
       ? {
-          OR: [
-            { name: { contains } },
-            { brand: { contains } },
-            { model: { contains } },
-            { description: { contains } },
-          ],
-        }
+        OR: [
+          { name: { contains } },
+          { brand: { contains } },
+          { model: { contains } },
+          { description: { contains } },
+        ],
+      }
       : {}),
   }
 }
 
 @Injectable()
 export class ProductRepository {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
+  // 新增商品
   create(createProductDto: CreateProductDto) {
     return this.prisma.product.create({
       data: createProductDto,
@@ -44,6 +46,7 @@ export class ProductRepository {
     })
   }
 
+  // 获取商品列表
   findAll(query: QueryProductDto = {}) {
     return this.prisma.product.findMany({
       where: productQueryWhere(query),
@@ -52,6 +55,20 @@ export class ProductRepository {
     })
   }
 
+  // 按商品名称搜索商品
+  async findByName(productName: string, pageNum: number, pageSize: number) {
+    return await Promise.all([
+      this.prisma.product.findMany({
+        where: { name: { contains: productName } },
+        orderBy: { createdAt: 'desc' },
+        skip: (pageNum - 1) * pageSize,
+        take: pageSize
+      }),
+      this.prisma.product.count({ where: { name: { contains: productName } } })
+    ])
+  }
+
+  // 分页查询商品列表
   findPage(query: QueryProductDto & { pageNum: number; pageSize: number }) {
     const where = productQueryWhere(query)
     return this.prisma.$transaction(
@@ -69,6 +86,7 @@ export class ProductRepository {
     )
   }
 
+  // 获取商品详情
   findOne(id: number) {
     return this.prisma.product.findUnique({
       where: { id },
@@ -76,6 +94,7 @@ export class ProductRepository {
     })
   }
 
+  // 更新商品
   update(id: number, updateProductDto: UpdateProductDto) {
     return this.prisma.product.update({
       where: { id },
@@ -84,6 +103,7 @@ export class ProductRepository {
     })
   }
 
+  // 删除商品
   remove(id: number) {
     return this.prisma.product.delete({ where: { id } })
   }

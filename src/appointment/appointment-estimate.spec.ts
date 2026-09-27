@@ -66,7 +66,7 @@ describe('预约预估报价', () => {
         estimatedAt: new Date(),
       }),
     }
-    service = new AppointmentService(repo as unknown as AppointmentRepository)
+    service = new AppointmentService(repo as unknown as AppointmentRepository, {} as never)
   })
 
   it.each(['BUDGET', 'QUOTE'])('%s 缺少金额不写入', async (type) => {

@@ -10,22 +10,25 @@ import { UpdateAppointmentRequirementDto } from './dto/update-appointment-requir
 describe('案例同款报价预约', () => {
   const payload = { userId: 7, type: 'user', role: 'CUSTOMER' } as UserJwtPayload
   const account = { id: 7, mobile: '13800138000', status: true }
-  let repo: { findUser: jest.Mock; findPublishedCase: jest.Mock; createCaseAppointment: jest.Mock }
+  let repo: Record<string, jest.Mock>
   let service: AppointmentService
 
   beforeEach(() => {
     repo = {
+      findActiveCaseAppointment: jest.fn().mockResolvedValue(null),
+      findCaseAppointmentEmployee: jest.fn().mockResolvedValue({ id: 21, status: true, user: { status: true, role: 'EMPLOYEE' } }),
+      incrementCaseQuoteCount: jest.fn(),
       findUser: jest.fn().mockResolvedValue(account),
       findPublishedCase: jest.fn().mockResolvedValue({ id: 3 }),
       createCaseAppointment: jest.fn().mockResolvedValue({ id: 12, appointmentNo: 'APT123' }),
     }
-    service = new AppointmentService(repo as unknown as AppointmentRepository)
+    service = new AppointmentService(repo as unknown as AppointmentRepository, { $transaction: jest.fn(async fn => fn({})) } as never)
   })
 
   it('使用登录用户和账号手机号提交案例预约', async () => {
     await expect(service.createCaseAppointment({ caseId: 3 }, payload)).resolves.toEqual({ appointmentId: 12, appointmentNo: 'APT123' })
     expect(repo.findUser).toHaveBeenCalledWith(7)
-    expect(repo.createCaseAppointment).toHaveBeenCalledWith({ userId: 7, caseId: 3, mobile: account.mobile, appointmentNo: expect.stringMatching(/^APT\d{17}[A-F0-9]{6}$/) })
+    expect(repo.createCaseAppointment).toHaveBeenCalledWith({ userId: 7, caseId: 3, mobile: account.mobile, employeeId: null, type: 'CASE', source: '装修案例', status: 'PENDING_CONTACT', appointmentNo: expect.stringMatching(/^APT\d{17}[A-F0-9]{6}$/) }, {})
   })
 
   it.each([null, { ...account, status: false }])('拒绝无效或禁用账号 %j', async (user) => {
@@ -41,7 +44,7 @@ describe('案例同款报价预约', () => {
   })
 
   it('重复预约返回 409', async () => {
-    repo.createCaseAppointment.mockResolvedValue(null)
+    repo.findActiveCaseAppointment.mockResolvedValue({ id: 9 })
     await expect(service.createCaseAppointment({ caseId: 3 }, payload)).rejects.toBeInstanceOf(ConflictException)
   })
 
@@ -55,6 +58,14 @@ describe('案例同款报价预约', () => {
     await expect(pipe.transform(body, { type: 'body', metatype: CreateCaseAppointmentDto })).rejects.toThrow()
   })
 
+  it.each([null, true, false, 0, -1, 1.5, 2147483648, '', 'abc', [], {}])('rejects invalid employee %j', async (employeeId) => {
+    await expect(pipe.transform({ caseId: 3, employeeId }, { type: 'body', metatype: CreateCaseAppointmentDto })).rejects.toThrow()
+  })
+  it('accepts string employee ID and forwards authenticated user', async () => {
+    await expect(pipe.transform({ caseId: 3, employeeId: '21' }, { type: 'body', metatype: CreateCaseAppointmentDto })).resolves.toEqual({ caseId: 3, employeeId: 21 })
+    await service.createCaseAppointment({ caseId: 3, employeeId: 21 }, payload)
+    expect(repo.createCaseAppointment).toHaveBeenCalledWith(expect.objectContaining({ userId: 7, employeeId: 21 }), {})
+  })
   it('转换字符串案例 ID', async () => {
     await expect(pipe.transform({ caseId: '3' }, { type: 'body', metatype: CreateCaseAppointmentDto })).resolves.toEqual({ caseId: 3 })
   })
@@ -65,35 +76,76 @@ describe('案例预约事务', () => {
   const setup = () => {
     const tx = {
       appointment: { findFirst: jest.fn().mockResolvedValue(null), create: jest.fn().mockResolvedValue({ id: 12, appointmentNo: 'APT123' }) },
+      employee: { findUnique: jest.fn().mockResolvedValue(null) },
       renovationCase: { update: jest.fn().mockResolvedValue({ id: 3 }) },
     }
     const transaction = jest.fn(async (callback: (client: typeof tx) => unknown) => callback(tx))
-    const repo = new AppointmentRepository({ $transaction: transaction } as any)
-    return { tx, transaction, repo }
+    const prisma = {
+      $transaction: transaction,
+      user: { findUnique: jest.fn().mockResolvedValue({ id: 7, mobile: data.mobile, status: true }) },
+      renovationCase: { findFirst: jest.fn().mockResolvedValue({ id: 3 }) },
+    }
+    const repo = new AppointmentRepository(prisma as any)
+    const service = new AppointmentService(repo, prisma as any)
+    const create = (input: { caseId: number; employeeId?: number }) => service.createCaseAppointment(input, { userId: 7, role: 'CUSTOMER', type: 'user' })
+    return { tx, transaction, create }
   }
 
   it('在串行化事务内创建 CASE 预约并增加咨询次数', async () => {
-    const { tx, transaction, repo } = setup()
-    await expect(repo.createCaseAppointment(data)).resolves.toEqual({ id: 12, appointmentNo: 'APT123' })
+    const { tx, transaction, create } = setup()
+    await expect(create(data)).resolves.toEqual({ appointmentId: 12, appointmentNo: 'APT123' })
     expect(transaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: 'Serializable' })
     expect(tx.appointment.findFirst).toHaveBeenCalledWith({ where: { userId: 7, caseId: 3, type: 'CASE', status: { in: ['PENDING_CONTACT', 'PENDING_VISIT'] } }, select: { id: true } })
     expect(tx.renovationCase.update).toHaveBeenCalledWith({ where: { id: 3, status: 'PUBLISHED' }, data: { quoteCount: { increment: 1 } } })
-    expect(tx.appointment.create).toHaveBeenCalledWith({ data: { ...data, type: 'CASE', source: '装修案例', status: 'PENDING_CONTACT' }, select: { id: true, appointmentNo: true } })
+    expect(tx.appointment.create).toHaveBeenCalledWith({ data: { ...data, appointmentNo: expect.stringMatching(/^APT/), employeeId: null, type: 'CASE', source: '装修案例', status: 'PENDING_CONTACT' }, select: { id: true, appointmentNo: true } })
   })
 
   it('存在未结束预约时不创建也不增加次数', async () => {
-    const { tx, repo } = setup()
+    const { tx, create } = setup()
     tx.appointment.findFirst.mockResolvedValue({ id: 9 })
-    await expect(repo.createCaseAppointment(data)).resolves.toBeNull()
+    await expect(create(data)).rejects.toBeInstanceOf(ConflictException)
     expect(tx.appointment.create).not.toHaveBeenCalled()
     expect(tx.renovationCase.update).not.toHaveBeenCalled()
   })
 
+  it.each([
+    [null, null],
+    [{ id: 21, status: true, user: { status: true, role: 'EMPLOYEE' } }, 21],
+    [{ id: 21, status: false, user: { status: true, role: 'EMPLOYEE' } }, null],
+    [{ id: 21, status: true, user: { status: false, role: 'EMPLOYEE' } }, null],
+    [{ id: 21, status: true, user: { status: true, role: 'CUSTOMER' } }, null],
+  ])('assigns only available employee %j', async (employee, expected) => {
+    const { tx, create } = setup()
+    tx.employee.findUnique.mockResolvedValue(employee)
+    await create({ ...data, employeeId: 21 })
+    expect(tx.appointment.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ employeeId: expected }) }))
+    expect(tx.renovationCase.update).toHaveBeenCalledTimes(1)
+  })
+  it('does not query employees for ordinary reservations', async () => {
+    const { tx, create } = setup()
+    await create(data)
+    expect(tx.employee.findUnique).not.toHaveBeenCalled()
+  })
+  it('does not reassign existing appointments', async () => {
+    const { tx, create } = setup()
+    tx.appointment.findFirst.mockResolvedValue({ id: 9 })
+    await expect(create({ ...data, employeeId: 22 })).rejects.toBeInstanceOf(ConflictException)
+    expect(tx.appointment.create).not.toHaveBeenCalled()
+    expect(tx.renovationCase.update).not.toHaveBeenCalled()
+  })
+  it('propagates employee lookup failures', async () => {
+    const { tx, create } = setup()
+    const error = new Error('database unavailable')
+    tx.employee.findUnique.mockRejectedValue(error)
+    await expect(create({ ...data, employeeId: 21 })).rejects.toBe(error)
+    expect(tx.appointment.create).not.toHaveBeenCalled()
+    expect(tx.renovationCase.update).not.toHaveBeenCalled()
+  })
   it('创建失败时向事务传播异常以触发回滚', async () => {
-    const { tx, repo } = setup()
+    const { tx, create } = setup()
     const error = new Error('create failed')
     tx.appointment.create.mockRejectedValue(error)
-    await expect(repo.createCaseAppointment(data)).rejects.toBe(error)
+    await expect(create(data)).rejects.toBe(error)
   })
 })
 
@@ -119,7 +171,7 @@ describe('预约客户房屋信息补录', () => {
       findOneForEmployee: jest.fn(),
       appointmentConfirmVisit: jest.fn(),
     }
-    service = new AppointmentService(repo as unknown as AppointmentRepository)
+    service = new AppointmentService(repo as unknown as AppointmentRepository, { $transaction: jest.fn(async fn => fn({})) } as never)
   })
 
   it('允许负责人部分补录并将面积转换为 Decimal', async () => {

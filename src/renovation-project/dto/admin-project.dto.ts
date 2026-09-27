@@ -25,6 +25,7 @@ import { OmitType, PartialType, PickType } from '@nestjs/mapped-types'
 import { RenovationProjectStatus } from '../../../generated/prisma/enums'
 import { CreateProjectQuoteItemDto } from '../../employee/dto/create-project.dto'
 
+// 去除文本首尾空白
 const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value
 

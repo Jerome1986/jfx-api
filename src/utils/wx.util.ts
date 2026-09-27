@@ -7,6 +7,7 @@ export class WxUtil {
   private readonly appId = process.env.APPID
   private readonly secret = process.env.APPSECRET
 
+  // 使用微信登录凭证获取会话信息
   async getSession(code: string) {
     const res = await axios.get('https://api.weixin.qq.com/sns/jscode2session', {
       params: {
@@ -25,6 +26,7 @@ export class WxUtil {
     return res.data
   }
 
+  // 获取微信接口访问凭证
   async getAccessToken() {
     if (!this.appId || !this.secret) {
       throw new InternalServerErrorException('微信配置缺失')
@@ -46,6 +48,7 @@ export class WxUtil {
     return res.data.access_token
   }
 
+  // 通过微信手机号授权凭证获取手机号
   async getPhoneNumber(phoneCode: string) {
     if (!phoneCode) {
       throw new BadRequestException('缺少手机号授权 code')

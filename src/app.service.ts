@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class AppService {
+  // 获取应用欢迎信息
   getHello(): string {
     return 'jfx';
   }

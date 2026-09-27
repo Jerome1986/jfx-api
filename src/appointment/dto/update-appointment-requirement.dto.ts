@@ -2,6 +2,7 @@
 import { Transform, Type } from 'class-transformer'
 import { IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator'
 
+// 去除文本首尾空白
 const trimText = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value
 

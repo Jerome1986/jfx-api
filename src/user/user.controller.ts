@@ -9,11 +9,16 @@ import {
   Post,
   Put,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { WxPhoneLoginDto } from './dto/wx-phone-login.dto';
 import { QueryUserDto } from './dto/query-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UserJwtGuard } from 'src/common/auth/guards/user-jwt.guard';
+import { CurrentUser } from 'src/common/auth/decorators/current-user.decorator';
+import type { UserJwtPayload } from 'src/common/auth/interfaces/user-jwt-payload.interface';
+import { QueryScoreDto } from './dto/query-score-dto';
 
 // 测试登录接口参数类型
 export type TestRole = 'CUSTOMER' | 'EMPLOYEE'
@@ -32,6 +37,20 @@ export class UserController {
   @Get()
   findAll(@Query() query: QueryUserDto) {
     return this.userService.findAll(query)
+  }
+
+  // 获取用户积分明细
+  @Get('pointRecord')
+  @UseGuards(UserJwtGuard)
+  scoreFlow(@Query() queryDto: QueryScoreDto, @CurrentUser('user') user: UserJwtPayload) {
+    return this.userService.scoreFlow(queryDto, user)
+  }
+
+  // 用户积分统计
+  @Get('scoreSummary')
+  @UseGuards(UserJwtGuard)
+  scoreSummary(@CurrentUser('user') user: UserJwtPayload) {
+    return this.userService.scoreSummary(user)
   }
 
   // 用户详情
@@ -62,7 +81,6 @@ export class UserController {
   }
 
   // 开发测试登录
-
   @Post('dev-login')
   testLogin(@Body('role') role: TestRole) {
     return this.userService.testLogin(role)

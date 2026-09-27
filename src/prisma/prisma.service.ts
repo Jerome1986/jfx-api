@@ -21,11 +21,13 @@ export class PrismaService
     super({ adapter });
   }
 
+  // 初始化数据库连接
   async onModuleInit() {
     console.log('DATABASE_URL:', process.env.DATABASE_URL);
     await this.$connect();
   }
 
+  // 关闭数据库连接
   async onModuleDestroy() {
     await this.$disconnect();
   }

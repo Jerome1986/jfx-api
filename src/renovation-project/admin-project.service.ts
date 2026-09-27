@@ -31,10 +31,12 @@ import { projectQuoteTotal } from './project-amount'
 export class AdminProjectService {
   constructor(private readonly prisma: PrismaService) {}
 
+  // 生成装修项目编号
   private projectNo() {
     return `ZX${new Date().toISOString().replace(/\D/g, '').slice(0, 17)}${randomBytes(5).toString('hex').toUpperCase()}`
   }
 
+  // 执行项目事务并转换数据库异常
   private async transaction<T>(
     work: (tx: Prisma.TransactionClient) => Promise<T>,
   ): Promise<T> {
@@ -53,6 +55,7 @@ export class AdminProjectService {
     }
   }
 
+  // 查询装修项目并校验是否存在
   private async project(tx: Prisma.TransactionClient, id: number) {
     const project = await tx.renovationProject.findUnique({
       where: { id },
@@ -89,6 +92,7 @@ export class AdminProjectService {
     return updatedAt
   }
 
+  // 校验负责人是否为有效在职员工
   private async employee(tx: Prisma.TransactionClient, id: number) {
     const employee = await tx.employee.findUnique({
       where: { id },
@@ -103,6 +107,7 @@ export class AdminProjectService {
     }
   }
 
+  // 校验装修项目关联的员工、用户和方案
   private async relations(
     tx: Prisma.TransactionClient,
     dto: CreateAdminProjectDto,
@@ -126,6 +131,7 @@ export class AdminProjectService {
       throw new BadRequestException('关联方案不存在')
   }
 
+  // 校验报价明细关联的商品和服务
   private async quoteSources(
     tx: Prisma.TransactionClient,
     items: AdminQuoteItemDto[],
@@ -160,6 +166,7 @@ export class AdminProjectService {
       throw new BadRequestException('报价包含不存在的服务')
   }
 
+  // 整理装修项目报价明细
   private quoteData(items: AdminQuoteItemDto[]) {
     return items.map((item, index) => ({
       productId: item.productId ?? null,
@@ -175,6 +182,7 @@ export class AdminProjectService {
     }))
   }
 
+  // 后台查询装修项目列表
   async list(query: QueryAdminProjectDto) {
     const where: Prisma.RenovationProjectWhereInput = {
       ...(query.status === 'ALL' ? {} : { status: query.status }),
@@ -219,10 +227,12 @@ export class AdminProjectService {
     }
   }
 
+  // 后台查询装修项目详情
   async detail(id: number) {
     return toAdminProject(await this.project(this.prisma, id))
   }
 
+  // 后台新增装修项目
   async create(dto: CreateAdminProjectDto) {
     return this.transaction(async (tx) => {
       await this.relations(tx, dto)
@@ -241,6 +251,7 @@ export class AdminProjectService {
     })
   }
 
+  // 后台更新装修项目信息
   async edit(id: number, dto: EditAdminProjectDto) {
     if (
       !Object.keys(dto).length ||
@@ -260,6 +271,7 @@ export class AdminProjectService {
     })
   }
 
+  // 分配装修项目负责人
   async assign(id: number, employeeId: number) {
     return this.transaction(async (tx) => {
       const project = await this.project(tx, id)
@@ -275,6 +287,7 @@ export class AdminProjectService {
     })
   }
 
+  // 将预约转为装修项目
   async convert(
     appointmentId: number,
     dto: ConvertAppointmentDto,
@@ -357,6 +370,7 @@ export class AdminProjectService {
     }
   }
 
+  // 校验并提取预约快照中的报价明细
   private async snapshotItems(
     snapshot: Prisma.JsonValue,
   ): Promise<AdminQuoteItemDto[]> {
@@ -389,6 +403,7 @@ export class AdminProjectService {
     return items
   }
 
+  // 保存装修项目报价
   async quotation(id: number, dto: SaveAdminQuotationDto) {
     const quotedAmount = projectQuoteTotal(dto.items)
     return this.transaction(async (tx) => {
@@ -415,6 +430,7 @@ export class AdminProjectService {
     })
   }
 
+  // 新增装修项目进度记录
   async progress(id: number, dto: AddProjectProgressDto, adminId: number) {
     return this.transaction(async (tx) => {
       const project = await this.project(tx, id)
@@ -467,6 +483,7 @@ export class AdminProjectService {
     })
   }
 
+  // 新增装修项目跟进记录
   async followUp(id: number, dto: AddProjectFollowUpDto) {
     return this.transaction(async (tx) => {
       const project = await this.project(tx, id)
