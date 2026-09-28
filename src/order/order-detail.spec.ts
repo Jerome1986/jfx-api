@@ -52,6 +52,7 @@ describe('User order detail HTTP', () => {
       .set('Authorization', 'Bearer ' + token).expect(200)
     expect(res.body).toEqual({ code: 200, message: 'success', data: {
       ...order, createdAt: order.createdAt.toISOString(),
+      paymentExpiresAt: new Date(order.createdAt.getTime() + 30 * 60 * 1000).toISOString(), paymentExpired: false,
     } })
     expect(findFirst).toHaveBeenCalledWith({
       where: { id: 15, userId: 7 }, include: { items: true, installation: true },

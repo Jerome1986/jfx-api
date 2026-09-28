@@ -8,6 +8,8 @@ import { UpdateEmployeeDto } from './dto/update-employee.dto'
 import { QueryEmployeeProjectDto } from './dto/query-employee-project.dto'
 import { CancelProjectDto } from './dto/cancel-project.dto'
 
+import { QueryEmployeePerformanceDto } from './dto/query-employee-performance.dto'
+
 export const employeeProjectDetailInclude = {
   quoteItems: { orderBy: [{ sort: 'asc' }, { id: 'asc' }] },
   employee: { include: { user: { select: { realName: true } } } },
@@ -72,6 +74,76 @@ export class EmployeeRepository {
       pendingConfirmCount,
       inServiceCount,
     }
+  }
+
+  // 概览与中心统一按已完工项目、完成时间统计合同金额。
+  performanceSummary(employeeId: number, start: Date, end: Date) {
+    return this.prisma.$transaction(async tx => {
+      const signedProjects = await tx.renovationProject.findMany({
+        where: {
+          employeeId,
+          status: 'COMPLETED',
+          completedAt: { gte: start, lt: end },
+        },
+        select: { mobile: true, contractAmount: true },
+      })
+      const completedGroups = await tx.renovationProject.groupBy({
+        by: ['employeeId'],
+        where: {
+          employeeId: { not: null },
+          employee: { is: { status: true, user: { is: { role: 'EMPLOYEE', status: true } } } },
+          status: 'COMPLETED',
+          completedAt: { gte: start, lt: end },
+        },
+        _sum: { contractAmount: true },
+        _count: { _all: true },
+      })
+      return { signedProjects, completedGroups }
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead })
+  }
+
+  // 业绩中心金额、数量、排名和项目列表统一按完工时间统计。
+  performanceCenter(employeeId: number, query: QueryEmployeePerformanceDto, range?: { start: Date; end: Date }) {
+    const signedWhere: Prisma.RenovationProjectWhereInput = {
+      employeeId: { not: null },
+      employee: { is: { status: true, user: { is: { role: 'EMPLOYEE', status: true } } } },
+      status: 'COMPLETED',
+      ...(range ? { completedAt: { gte: range.start, lt: range.end } } : {}),
+    }
+    const completedWhere: Prisma.RenovationProjectWhereInput = {
+      employeeId,
+      status: 'COMPLETED',
+      ...(range ? { completedAt: { gte: range.start, lt: range.end } } : {}),
+    }
+    return this.prisma.$transaction(async tx => {
+      const groups = await tx.renovationProject.groupBy({
+        by: ['employeeId'], where: signedWhere,
+        _sum: { contractAmount: true }, _count: { _all: true },
+      })
+      const employees = await tx.employee.findMany({
+        where: { status: true, user: { is: { role: 'EMPLOYEE', status: true } } },
+        select: { id: true, user: { select: { realName: true, nickname: true } } },
+      })
+      const totalSigned = await tx.renovationProject.aggregate({
+        where: { employeeId, status: 'COMPLETED' },
+        _sum: { contractAmount: true }, _count: { _all: true },
+      })
+      const completedProjectCount = await tx.renovationProject.count({ where: completedWhere })
+      const totalCompletedProjectCount = range
+        ? await tx.renovationProject.count({ where: { employeeId, status: 'COMPLETED' } })
+        : completedProjectCount
+      const projects = await tx.renovationProject.findMany({
+        where: completedWhere,
+        select: {
+          id: true, name: true, customerName: true, mobile: true,
+          contractAmount: true, completedAt: true,
+          plan: { select: { name: true } },
+        },
+        orderBy: [{ completedAt: 'desc' }, { id: 'desc' }],
+        skip: (query.pageNum - 1) * query.pageSize, take: query.pageSize,
+      })
+      return { groups, employees, totalSigned, completedProjectCount, totalCompletedProjectCount, projects }
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead })
   }
 
   // 按员工和订单状态分页查询装修订单及总数

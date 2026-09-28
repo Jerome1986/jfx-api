@@ -70,4 +70,13 @@ describe('WeChat payment retries', () => {
     await expect(pay()).rejects.toThrow(BadRequestException)
     await expect(pay()).rejects.toThrow('微信支付下单失败，请检查支付信息')
   })
+  it('向微信传递原订单固定截止时间，到期后不再创建支付单', async () => {
+    const deadline = new Date(Date.now() + 30 * 60 * 1000)
+    await service.wxPay('商品订单', 'original-order', 'owner-openid', 12345, deadline)
+    expect(axios.post).toHaveBeenCalledWith(process.env.PAY_URL, expect.objectContaining({ time_expire: deadline.toISOString().replace(/\.\d{3}Z$/, '+00:00') }), expect.anything())
+    ;(axios.post as jest.Mock).mockClear()
+    await expect(service.wxPay('商品订单', 'original-order', 'owner-openid', 12345, new Date(Date.now() - 1))).rejects.toThrow(ConflictException)
+    expect(axios.post).not.toHaveBeenCalled()
+  })
+
 })

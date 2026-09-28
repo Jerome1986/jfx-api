@@ -17,6 +17,10 @@ import { RenovationProjectRepository } from 'src/renovation-project/renovation-p
 import { AppointmentRepository } from '../appointment/appointment.repository';
 import { projectQuoteTotal } from '../renovation-project/project-amount';
 import { QueryEmployeeProjectDto } from './dto/query-employee-project.dto';
+import { getBeijingMonthRange } from '../utils/date.util';
+import type { EmployeePerformanceSummary } from './interfaces/employee-performance-summary.interface';
+
+import { QueryEmployeePerformanceDto } from './dto/query-employee-performance.dto';
 
 @Injectable()
 export class EmployeeService {
@@ -117,10 +121,91 @@ export class EmployeeService {
     return this.employeeRepo.summary(employee.id)
   }
 
+  // 当前员工本月签约、完工和公司排名
+  async performanceSummary(user: UserJwtPayload): Promise<EmployeePerformanceSummary> {
+    const now = new Date()
+    const employee = await this.requireActiveEmployee(user)
+    const { start, end } = getBeijingMonthRange(now)
+    const { signedProjects, completedGroups } = await this.employeeRepo.performanceSummary(employee.id, start, end)
+    const customers = new Set(signedProjects.map(project => project.mobile.trim()).filter(Boolean))
+    const signedAmount = signedProjects.reduce(
+      (sum, project) => sum.plus(project.contractAmount ?? 0),
+      new Prisma.Decimal(0),
+    )
+    const completed = completedGroups.find(group => group.employeeId === employee.id)
+    const completedAmount = completed?._sum.contractAmount ?? new Prisma.Decimal(0)
+
+    return {
+      month: new Date(start.getTime() + 8 * 60 * 60 * 1000).toISOString().slice(0, 7),
+      signedCustomerCount: customers.size,
+      signedAmount: signedAmount.toFixed(2),
+      completedProjectCount: completed?._count._all ?? 0,
+      companyRank: completedGroups.filter(group =>
+        (group._sum.contractAmount ?? new Prisma.Decimal(0)).greaterThan(completedAmount),
+      ).length + 1,
+    }
+  }
+
+  // 已完工即计入签约金额；所有有效员工参与排名，无业绩按零计算。
+  async performanceCenter(query: QueryEmployeePerformanceDto, user: UserJwtPayload) {
+    const employee = await this.requireActiveEmployee(user)
+    const currentRange = getBeijingMonthRange()
+    const month = query.month ?? new Date(currentRange.start.getTime() + 8 * 60 * 60 * 1000).toISOString().slice(0, 7)
+    const range = month === 'all' ? undefined : getBeijingMonthRange(new Date(month + '-15T00:00:00+08:00'))
+    const result = await this.employeeRepo.performanceCenter(employee.id, query, range)
+    const amount = (value: Prisma.Decimal | null) => value ?? new Prisma.Decimal(0)
+    const names = new Map(result.employees.map(item => [item.id, item.user.realName || item.user.nickname || '员工']))
+    const grouped = new Map(result.groups.map(group => [group.employeeId, group]))
+    const groups = result.employees.map(item => grouped.get(item.id) ?? {
+      employeeId: item.id, _sum: { contractAmount: new Prisma.Decimal(0) }, _count: { _all: 0 },
+    }).sort((a, b) =>
+      amount(b._sum.contractAmount).comparedTo(amount(a._sum.contractAmount)) || a.employeeId! - b.employeeId!,
+    )
+    let rank = 0
+    const rankings = groups.map((group, index) => {
+      if (index === 0 || !amount(group._sum.contractAmount).equals(amount(groups[index - 1]._sum.contractAmount))) rank = index + 1
+      return { employeeId: group.employeeId!, name: names.get(group.employeeId!) || '员工', rank, signedAmount: amount(group._sum.contractAmount).toFixed(2) }
+    })
+    const own = groups.find(group => group.employeeId === employee.id)
+    const signedAmount = amount(own?._sum.contractAmount ?? null)
+    const signedProjectCount = result.completedProjectCount
+    const currentEmployee = rankings.find(item => item.employeeId === employee.id) ?? {
+      employeeId: employee.id, name: names.get(employee.id) || '员工', rank: null, signedAmount: '0.00',
+    }
+    return {
+      month,
+      summary: {
+        signedAmount: signedAmount.toFixed(2), signedProjectCount,
+        completedProjectCount: result.completedProjectCount,
+        averageSignedAmount: signedProjectCount ? signedAmount.div(signedProjectCount).toFixed(2) : '0.00',
+        companyRank: currentEmployee.rank,
+      },
+      totals: {
+        signedAmount: amount(result.totalSigned._sum.contractAmount).toFixed(2),
+        completedProjectCount: result.totalCompletedProjectCount,
+      },
+      rankings: rankings.slice(0, 5),
+      currentEmployee,
+      projects: {
+        list: result.projects.map(project => {
+          const mobile = project.mobile.trim()
+          return {
+            id: project.id, name: project.name, customerName: project.customerName,
+            mobile: mobile.length >= 7 ? mobile.slice(0, 3) + '****' + mobile.slice(-4) : '—',
+            signedAmount: amount(project.contractAmount).toFixed(2),
+            planName: project.plan?.name ?? null, completedAt: project.completedAt,
+          }
+        }),
+        total: result.completedProjectCount, pageNum: query.pageNum, pageSize: query.pageSize,
+        totalPage: Math.ceil(result.completedProjectCount / query.pageSize),
+      },
+    }
+  }
+
   // 校验当前用户的员工身份和账号状态，返回员工档案
   private async requireActiveEmployee(user: UserJwtPayload) {
-    if (user.type !== 'user') throw new ForbiddenException('仅员工用户可操作装修订单')
-    if (user.role !== 'EMPLOYEE') throw new ForbiddenException('仅员工可操作装修订单')
+    if (user.type !== 'user') throw new ForbiddenException('仅员工用户可访问')
+    if (user.role !== 'EMPLOYEE') throw new ForbiddenException('仅员工可访问')
     const employee = await this.employeeRepo.findByUserId(user.userId)
     if (!employee || !employee.status || !employee.user.status || employee.user.role !== 'EMPLOYEE') {
       throw new ForbiddenException('当前员工账号不可用')

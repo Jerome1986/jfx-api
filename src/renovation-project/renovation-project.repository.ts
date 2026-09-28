@@ -70,6 +70,7 @@ export class RenovationProjectRepository {
       data: {
         status: 'IN_SERVICE',
         contractAmount: project.quotedAmount,
+        quoteConfirmedAt: new Date(),
         progress: '客户已确认报价，开始服务',
         progresses: { create: { status: 'IN_SERVICE', content: '客户已确认报价，开始服务', createdBy: `user:${userId}` } },
       }

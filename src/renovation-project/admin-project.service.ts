@@ -464,7 +464,7 @@ export class AdminProjectService {
             progress: dto.content,
             updatedAt,
             ...(confirming
-              ? { contractAmount: new Prisma.Decimal(dto.contractAmount!) }
+              ? { contractAmount: new Prisma.Decimal(dto.contractAmount!), quoteConfirmedAt: new Date() }
               : {}),
             ...(project.status !== 'COMPLETED' && dto.status === 'COMPLETED'
               ? { completedAt: new Date() }

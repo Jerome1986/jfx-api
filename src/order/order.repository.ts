@@ -17,7 +17,7 @@ export class OrderRepository {
     return this.prisma.productOrder.findFirst({
       where: { id, userId },
       select: {
-        id: true, orderNo: true, payableAmount: true,
+        id: true, orderNo: true, payableAmount: true, createdAt: true,
         status: true, paymentStatus: true, paymentNo: true, paidAt: true,
         user: { select: { status: true, openid: true } },
       },
@@ -138,11 +138,19 @@ export class OrderRepository {
     return db.productOrder.findFirst({ where, include: { items: true, installation: true } })
   }
 
+  // 按 ID 分页扫描，失败订单留待下轮重试。
+  findExpiredPayments(cutoff: Date, afterId: number, take: number) {
+    return this.prisma.productOrder.findMany({
+      where: { id: { gt: afterId }, createdAt: { lte: cutoff }, status: 'PENDING_PAYMENT', paymentStatus: 'UNPAID', paymentNo: null, paidAt: null },
+      select: { id: true }, orderBy: { id: 'asc' }, take,
+    })
+  }
+
   // 按未支付条件更新订单为已取消，返回受影响的记录数。
-  markCanceled(where: { id: number; userId?: number }, tx: Prisma.TransactionClient) {
+  markCanceled(where: { id: number; userId?: number }, tx: Prisma.TransactionClient, cancelReason?: string) {
     return tx.productOrder.updateMany({
       where: { ...where, status: 'PENDING_PAYMENT', paymentStatus: 'UNPAID', paymentNo: null, paidAt: null },
-      data: { status: 'CANCELED', paymentStatus: 'CLOSED', canceledAt: new Date() },
+      data: { status: 'CANCELED', paymentStatus: 'CLOSED', canceledAt: new Date(), ...(cancelReason ? { cancelReason } : {}) },
     })
   }
 

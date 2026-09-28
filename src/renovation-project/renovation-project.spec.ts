@@ -81,7 +81,7 @@ describe('装修项目确认与详情', () => {
     expect(update).toHaveBeenCalledWith({
         omit: { remark: true, progress: true },
       where: { id: 1, userId: 7, status: 'PENDING_CONFIRM', quoteVersion: 1, updatedAt: project.updatedAt, quotedAmount: project.quotedAmount },
-      data: { status: 'IN_SERVICE', contractAmount: project.quotedAmount, progress: '客户已确认报价，开始服务', progresses: { create: { status: 'IN_SERVICE', content: '客户已确认报价，开始服务', createdBy: 'user:7' } } },
+      data: { status: 'IN_SERVICE', contractAmount: project.quotedAmount, quoteConfirmedAt: expect.any(Date), progress: '客户已确认报价，开始服务', progresses: { create: { status: 'IN_SERVICE', content: '客户已确认报价，开始服务', createdBy: 'user:7' } } },
     })
   })
 })

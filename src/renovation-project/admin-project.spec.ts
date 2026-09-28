@@ -503,6 +503,7 @@ describe('后台装修项目业务', () => {
           progress: '客户线下确认',
           updatedAt: expect.any(Date),
           contractAmount: new Prisma.Decimal('1800'),
+          quoteConfirmedAt: expect.any(Date),
           progresses: {
             create: {
               status: 'IN_SERVICE',
@@ -581,6 +582,7 @@ describe('后台装修项目业务', () => {
       expect(
         tx.renovationProject.update.mock.calls[1][0].data,
       ).not.toHaveProperty('completedAt')
+      expect(tx.renovationProject.update.mock.calls[1][0].data).not.toHaveProperty('quoteConfirmedAt')
       await expect(
         service.progress(
           1,

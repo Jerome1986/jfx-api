@@ -5,6 +5,7 @@ export enum ProjectStatus {
   PENDING_CONFIRM = 'PENDING_CONFIRM',
   IN_SERVICE = 'IN_SERVICE',
   COMPLETED = 'COMPLETED',
+  CANCELED = 'CANCELED',
 }
 
 export class QueryUserRenovationProjectDto {

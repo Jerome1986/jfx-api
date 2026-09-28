@@ -27,7 +27,9 @@ describe('Existing order payment HTTP and service', () => {
     timeStamp: '1790000000', nonceStr: 'nonce', packageValue: 'prepay_id=test',
     signType: 'RSA', paySign: 'signature',
   }
+  const createdAt = new Date()
   const makeOrder = () => ({
+    createdAt,
     id: 15, userId: 7, orderNo: 'existing-order', payableAmount: new Prisma.Decimal('123.45'),
     status: 'PENDING_PAYMENT', paymentStatus: 'UNPAID',
     paymentNo: null as string | null, paidAt: null as Date | null,
@@ -92,12 +94,12 @@ describe('Existing order payment HTTP and service', () => {
   it('returns HTTP 200 and the existing first-payment fields using only trusted order data', async () => {
     const res = await pay().send({ userId: 9, openid: 'attacker', amount: 999, orderNo: 'other' }).expect(200)
     expect(res.body).toEqual({ code: 200, message: 'success', data: { ...params, orderId: 15 } })
-    expect(wxPay).toHaveBeenCalledWith('商品订单', 'existing-order', 'owner-openid', 12345)
+    expect(wxPay).toHaveBeenCalledWith('商品订单', 'existing-order', 'owner-openid', 12345, new Date(createdAt.getTime() + 30 * 60 * 1000))
     expect(findFirst).toHaveBeenCalledTimes(2)
     expect(findFirst).toHaveBeenCalledWith({
       where: { id: 15, userId: 7 },
       select: {
-        id: true, orderNo: true, payableAmount: true, status: true,
+        id: true, orderNo: true, payableAmount: true, createdAt: true, status: true,
         paymentStatus: true, paymentNo: true, paidAt: true,
         user: { select: { status: true, openid: true } },
       },
@@ -163,7 +165,7 @@ describe('Existing order payment HTTP and service', () => {
     await Promise.all([service.pay(15, actor), service.pay(15, actor)])
     expect(wxPay).toHaveBeenCalledTimes(4)
     for (const args of wxPay.mock.calls) {
-      expect(args).toEqual(['商品订单', 'existing-order', 'owner-openid', 12345])
+      expect(args).toEqual(['商品订单', 'existing-order', 'owner-openid', 12345, new Date(createdAt.getTime() + 30 * 60 * 1000)])
     }
     expect(order).toEqual(makeOrder())
   })

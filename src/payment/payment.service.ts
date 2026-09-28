@@ -36,13 +36,15 @@ export class PaymentService {
 
 
   // 微信支付
-  async wxPay(remark: string, outTradeNo: string, openid: string, amount: number | string) {
+  async wxPay(remark: string, outTradeNo: string, openid: string, amount: number | string, expiresAt?: Date) {
+    if (expiresAt && expiresAt.getTime() <= Date.now()) throw new ConflictException('订单已超时，无法继续支付')
     // 构建参数 amount 当前测试用 1分
     const body = {
       appid: process.env.APPID,
       mchid: process.env.MCH_ID,
       description: remark,
       out_trade_no: outTradeNo,
+      ...(expiresAt ? { time_expire: expiresAt.toISOString().replace(/\.\d{3}Z$/, '+00:00') } : {}),
       notify_url: process.env.NOTIFY_URL,
       amount: {
         total: 1, // 单位分

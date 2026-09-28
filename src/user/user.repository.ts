@@ -35,6 +35,17 @@ const loginUserSelect = {
   employee: true,
 } satisfies Prisma.UserSelect
 
+// 统计当前可用券，与下单校验一致；停用模板不影响已领取的券。
+const availableCouponWhere = (): Prisma.UserCouponWhereInput => {
+  const now = new Date()
+  return {
+    status: 'AVAILABLE',
+    orderId: null,
+    expiresAt: { gt: now },
+    coupon: { validFrom: { lte: now }, status: { not: 'DRAFT' } },
+  }
+}
+
 @Injectable()
 export class UserRepository {
   constructor(private prisma: PrismaService) { }
@@ -144,7 +155,7 @@ export class UserRepository {
           select: {
             appointments: true,
             favorites: true,
-            userCoupons: true,
+            userCoupons: { where: availableCouponWhere() },
           },
         },
       },
@@ -176,7 +187,7 @@ export class UserRepository {
             },
             favorites: true,
             userCoupons: {
-              where: { status: 'AVAILABLE' },
+              where: availableCouponWhere(),
             },
           },
         },

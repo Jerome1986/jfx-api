@@ -871,6 +871,8 @@ model RenovationProject {
   quoteRemark          String?                 @map("quote_remark") @db.VarChar(500)
   /// 合同成交金额
   contractAmount       Decimal?                @map("contract_amount") @db.Decimal(10, 2)
+  /// 客户或后台首次确认成交的时间
+  quoteConfirmedAt     DateTime?               @map("quote_confirmed_at")
   /// 装修项目状态
   status               RenovationProjectStatus @default(PENDING_CONFIRM)
   /// 取消原因与操作时间
@@ -902,6 +904,8 @@ model RenovationProject {
 
   @@index([status, employeeId])
   @@index([userId, createdAt])
+  @@index([employeeId, status, quoteConfirmedAt], map: "project_employee_status_confirmed_idx")
+  @@index([status, completedAt, employeeId], map: "project_status_completed_employee_idx")
   @@map("renovation_project")
 }
 
@@ -975,6 +979,8 @@ model ProjectProgress {
 
 // 商品订单表：保存订单金额、支付、退款及履约状态
 model ProductOrder {
+  /// 超时关闭原因；手动取消及历史记录为空
+  cancelReason String? @map("cancel_reason") @db.VarChar(100)
   /// 客户确认截止时间，安装完工后开始计算
   confirmationDeadlineAt DateTime?            @map("confirmation_deadline_at")
   /// 订单最终完成方式，历史订单为空

@@ -12,6 +12,8 @@ import { UpdateProjectQuoteDto } from './dto/update-project-quote.dto';
 import { QueryEmployeeProjectDto } from './dto/query-employee-project.dto';
 import { CancelProjectDto } from './dto/cancel-project.dto';
 
+import { QueryEmployeePerformanceDto } from './dto/query-employee-performance.dto';
+
 @Controller('employee')
 export class EmployeeController {
   constructor(private readonly employeeService: EmployeeService) { }
@@ -35,7 +37,21 @@ export class EmployeeController {
     return this.employeeService.summary(user);
   }
 
-  // 当前员工负责的装修订单，静态路由放在 :id 之前。
+  // 当前员工本月业绩概览，静态路由放在 :id 之前。
+  @Get('performance/summary')
+  @UseGuards(UserJwtGuard)
+  performanceSummary(@CurrentUser() user: UserJwtPayload) {
+    return this.employeeService.performanceSummary(user);
+  }
+
+  // 业绩中心：签约汇总、公司排名和已完成项目。
+  @Get('performance/center')
+  @UseGuards(UserJwtGuard)
+  performanceCenter(@Query() query: QueryEmployeePerformanceDto, @CurrentUser() user: UserJwtPayload) {
+    return this.employeeService.performanceCenter(query, user);
+  }
+
+  // 当前员工负责的装修订单
   @Get('projects')
   @UseGuards(UserJwtGuard)
   findProjects(@Query() query: QueryEmployeeProjectDto, @CurrentUser() user: UserJwtPayload) {

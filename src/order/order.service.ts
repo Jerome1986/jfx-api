@@ -10,6 +10,7 @@ import { PaymentService } from 'src/payment/payment.service';
 import { QueryOrderDto } from './dto/query-order.dto';
 import { ArrangeInstallationDto } from './dto/arrange-installation.dto';
 import { QueryAllDto } from './dto/query-all.dto';
+import { PAYMENT_TIMEOUT_MS, PAYMENT_TIMEOUT_REASON, paymentExpired, paymentExpiresAt, withPaymentDeadline } from './order-payment-timeout';
 
 
 @Injectable()
@@ -22,6 +23,7 @@ export class OrderService {
         order.paymentNo !== null || order.paidAt !== null) {
       throw new ConflictException('订单已支付、已关闭或状态异常，请刷新订单')
     }
+    if (paymentExpired(order.createdAt)) throw new ConflictException('订单已超时，正在关闭，请稍后刷新')
     if (!order.user.status) throw new ForbiddenException('用户已被禁用')
     if (!order.user.openid?.trim()) throw new BadRequestException('用户未绑定微信，无法发起微信支付')
     return { ...order, openid: order.user.openid }
@@ -36,7 +38,7 @@ export class OrderService {
     const order = this.validatePayment(await this.orderRepo.findForPayment(id, actor.userId))
     // 外部请求不占用数据库事务，始终使用原商户订单号及订单金额快照。
     const payRes = await this.wxPayRepo.wxPay(
-      '商品订单', order.orderNo, order.openid, order.payableAmount.mul(100).toNumber(),
+      '商品订单', order.orderNo, order.openid, order.payableAmount.mul(100).toNumber(), paymentExpiresAt(order.createdAt),
     )
     // 取消或支付回调可能已在微信请求期间完成，返回前再次核对。
     this.validatePayment(await this.orderRepo.findForPayment(id, actor.userId))
@@ -203,8 +205,14 @@ export class OrderService {
       throw new BadRequestException('订单ID必须是有效的正整数')
     }
     const where = { id, ...(actor.type === 'admin' ? {} : { userId: actor.userId }) }
+    return this.closePendingOrder(where, actor.type + ':' + actor.userId)
+  }
+
+  // 客户取消和超时关闭复用同一事务，只有条件更新成功才返还资源。
+  private async closePendingOrder(where: { id: number; userId?: number }, operator: string, timeout = false) {
     const order = this.validateCancellation(await this.orderRepo.findForCancellation(where))
     if (order.status === 'CANCELED') return order
+    if (timeout && !paymentExpired(order.createdAt)) return order
     // 先确认微信支付关单成功，再释放资源；失败时允许重试。
     await this.wxPayRepo.closeOrder(order.orderNo)
     try {
@@ -214,7 +222,10 @@ export class OrderService {
         if (current.status === 'CANCELED') return current
 
         // 2. 按未支付条件取消订单；更新失败时核对是否已被其他请求取消。
-        const changed = await this.orderRepo.markCanceled(where, tx)
+        if (timeout && !paymentExpired(current.createdAt)) return current
+        const changed = timeout
+          ? await this.orderRepo.markCanceled(where, tx, PAYMENT_TIMEOUT_REASON)
+          : await this.orderRepo.markCanceled(where, tx)
         if (changed.count !== 1) {
           const latest = await this.orderRepo.findForCancellation(where, tx)
           if (latest?.status === 'CANCELED' && latest.paymentStatus === 'CLOSED') return latest
@@ -227,7 +238,7 @@ export class OrderService {
           if (item.productId !== null) quantities.set(item.productId, (quantities.get(item.productId) ?? 0) + item.quantity)
         }
         for (const [productId, quantity] of [...quantities].sort(([a], [b]) => a - b)) {
-          await this.orderRepo.restoreStock(productId, quantity, current.orderNo, actor.type + ':' + actor.userId, tx)
+          await this.orderRepo.restoreStock(productId, quantity, current.orderNo, operator, tx)
         }
 
         // 4. 返还订单抵扣的积分并记录流水，未使用积分则跳过。
@@ -246,6 +257,26 @@ export class OrderService {
         throw new ConflictException('订单数据已变化，请重试取消')
       }
       throw error
+    }
+  }
+
+  // 每分钟扫描到期未付款订单；微信关单未确认时不释放资源。
+  async closeExpiredPayments() {
+    const cutoff = new Date(Date.now() - PAYMENT_TIMEOUT_MS)
+    const pageSize = 100
+    let afterId = 0
+    while (true) {
+      const orders = await this.orderRepo.findExpiredPayments(cutoff, afterId, pageSize)
+      if (!orders.length) break
+      for (const order of orders) {
+        try {
+          await this.closePendingOrder({ id: order.id }, 'system:payment-timeout', true)
+        } catch (error) {
+          this.logger.warn('订单 ' + order.id + ' 超时关单未完成，下轮重试：' + (error instanceof Error ? error.message : String(error)))
+        }
+      }
+      afterId = orders[orders.length - 1].id
+      if (orders.length < pageSize) break
     }
   }
 
@@ -271,7 +302,8 @@ export class OrderService {
         '商品订单',
         order.orderNo,
         order.openid,
-        order.payableAmount.mul(100).toNumber()
+        order.payableAmount.mul(100).toNumber(),
+        paymentExpiresAt(order.createdAt)
       )
       return { ...payRes, orderId: order.id }
     } catch (error) {
@@ -288,7 +320,7 @@ export class OrderService {
     const [list, total] = await this.orderRepo.orderFindAllByUser(queryOrderDto, user)
 
     return {
-      list,
+      list: list.map(withPaymentDeadline),
       total,
       pageNum: queryOrderDto.pageNum,
       pageSize: queryOrderDto.pageSize,
@@ -303,7 +335,7 @@ export class OrderService {
     }
     const order = await this.orderRepo.findOneByUser(id, user.userId)
     if (!order) throw new NotFoundException('订单不存在')
-    return order
+    return withPaymentDeadline(order)
   }
 
   // 查询后台订单列表并返回分页信息。
@@ -314,7 +346,7 @@ export class OrderService {
       total,
       pageNum: query.pageNum,
       pageSize: query.pageSize,
-      totalPage: Math.ceil(total / Number(query.pageNum))
+      totalPage: Math.ceil(total / (Number(query.pageSize) || 10))
     }
   }
 }
