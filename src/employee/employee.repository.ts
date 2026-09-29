@@ -37,6 +37,7 @@ export const safeEmployeeInclude = {
 
 @Injectable()
 export class EmployeeRepository {
+  // 注入 PrismaService，封装当前模块的数据库访问。
   constructor(private prisma: PrismaService) { }
 
   // 根据用户 ID 查询员工档案，支持传入事务客户端

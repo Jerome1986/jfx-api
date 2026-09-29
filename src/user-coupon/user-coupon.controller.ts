@@ -4,6 +4,7 @@ import { CreateUserCouponDto } from './dto/create-user-coupon.dto';
 
 @Controller('user-coupon')
 export class UserCouponController {
+  // 注入 UserCouponService，将接口请求交给业务服务处理。
   constructor(private readonly userCouponService: UserCouponService) { }
 
   // 给指定用户发放优惠券

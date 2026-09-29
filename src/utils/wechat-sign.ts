@@ -15,6 +15,7 @@ export class WechatSign {
   private serialNo: string
   private privateKey: string
 
+  // 保存商户号、证书序列号和私钥，供微信支付请求及客户端签名使用。
   constructor(options: SignOptions) {
     this.mchid = options.mchid
     this.serialNo = options.serialNo

@@ -6,6 +6,7 @@ import { BannerRepository } from './banner.repository';
 
 @Injectable()
 export class BannerService {
+  // 注入 BannerRepository，供当前模块的业务校验与流程编排使用。
   constructor(private bannerRepository: BannerRepository) {}
 
   // 新增轮播图

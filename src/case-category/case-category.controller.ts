@@ -8,6 +8,7 @@ import { QueryCase } from '../case/dto/query-case.dto';
 
 @Controller('case-category')
 export class CaseCategoryController {
+  // 注入 CaseCategoryService，将接口请求交给业务服务处理。
   constructor(private readonly caseCategoryService: CaseCategoryService) { }
 
   // 新增分类

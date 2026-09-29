@@ -8,6 +8,7 @@ import { ServiceOutletService } from './service-outlet.service'
 
 @Controller('service-outlet')
 export class ServiceOutletController {
+  // 注入 ServiceOutletService，将接口请求交给业务服务处理。
   constructor(private readonly serviceOutletService: ServiceOutletService) { }
 
   // 新增服务网点

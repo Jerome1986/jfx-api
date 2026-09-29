@@ -10,6 +10,7 @@ import { QueryMyFeedbackDto } from './dto/query-my-feedback.dto';
 
 @Controller('feedback')
 export class FeedbackController {
+  // 注入 FeedbackService，将接口请求交给业务服务处理。
   constructor(private readonly feedbackService: FeedbackService) { }
 
   // 管理员提交回复：仅待处理、处理中可回复，成功后标记为已回复

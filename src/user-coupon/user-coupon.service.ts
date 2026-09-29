@@ -10,6 +10,7 @@ import { UserRepository } from 'src/user/user.repository';
 
 @Injectable()
 export class UserCouponService {
+  // 注入 UserCouponRepository、CouponRepository、UserRepository、PrismaService，供当前模块的业务校验与流程编排使用。
   constructor(
     private userCouponRepo: UserCouponRepository,
     private couponRepo: CouponRepository,

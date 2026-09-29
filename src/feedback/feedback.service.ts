@@ -17,6 +17,7 @@ import { QueryMyFeedbackDto } from './dto/query-my-feedback.dto'
 
 @Injectable()
 export class FeedbackService {
+  // 注入 FeedbackRepository、PrismaService，供当前模块的业务校验与流程编排使用。
   constructor(
     private feedbackRepo: FeedbackRepository,
     private prisma: PrismaService,

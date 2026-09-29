@@ -7,6 +7,7 @@ import { ServiceOutletRepository } from './service-outlet.repository'
 
 @Injectable()
 export class ServiceOutletService {
+  // 注入 ServiceOutletRepository，供当前模块的业务校验与流程编排使用。
   constructor(private repository: ServiceOutletRepository) { }
 
   // 新增服务网点

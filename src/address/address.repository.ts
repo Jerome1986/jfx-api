@@ -6,6 +6,7 @@ import { UpdateAddressDto } from './dto/update-address.dto'
 
 @Injectable()
 export class AddressRepository {
+  // 注入 PrismaService，封装当前模块的数据库访问。
   constructor(private prisma: PrismaService) {}
 
   // 新增地址记录

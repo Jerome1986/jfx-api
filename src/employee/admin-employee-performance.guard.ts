@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service'
 
 @Injectable()
 export class AdminEmployeePerformanceGuard implements CanActivate {
+  // 注入数据库服务，核实后台管理员是否存在且启用。
   constructor(private readonly prisma: PrismaService) {}
 
   // 令牌由 UserJwtGuard 校验，此处核实后台身份及账号状态。

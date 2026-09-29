@@ -7,6 +7,7 @@ import { UpdateCouponDto } from "./dto/update-coupon.dto";
 
 @Injectable()
 export class CouponRepository {
+  // 注入 PrismaService，封装当前模块的数据库访问。
   constructor(private readonly prisma: PrismaService) { }
 
   // 新建优惠券模板
@@ -39,7 +40,7 @@ export class CouponRepository {
     )
   }
 
-  // 详情
+  // 根据优惠券模板 ID 查询详情，支持复用调用方的事务客户端。
   findOne(id: number, tx: Prisma.TransactionClient = this.prisma) {
     return tx.coupon.findFirst({
       where: { id }
@@ -54,7 +55,7 @@ export class CouponRepository {
     })
   }
 
-  // 更新
+  // 根据模板 ID 更新优惠券配置并返回更新后的记录。
   update(id: number, updateCouponDto: UpdateCouponDto) {
     return this.prisma.coupon.update({
       where: { id },

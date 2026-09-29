@@ -25,6 +25,7 @@ import { UpdateAppointmentRequirementDto } from './dto/update-appointment-requir
 
 @Controller('appointment')
 export class AppointmentController {
+  // 注入 AppointmentService，将接口请求交给业务服务处理。
   constructor(private readonly appointmentService: AppointmentService) { }
 
   // 提交焕新方案预约

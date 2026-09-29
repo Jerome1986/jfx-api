@@ -24,6 +24,7 @@ import { QueryEmployeePerformanceDto } from './dto/query-employee-performance.dt
 
 @Injectable()
 export class EmployeeService {
+  // 注入 EmployeeRepository、UserRepository、RenovationProjectRepository、AppointmentRepository、PrismaService，供当前模块的业务校验与流程编排使用。
   constructor(
     private readonly employeeRepo: EmployeeRepository,
     private readonly userRepo: UserRepository,
@@ -153,6 +154,7 @@ export class EmployeeService {
     const month = query.month ?? new Date(currentRange.start.getTime() + 8 * 60 * 60 * 1000).toISOString().slice(0, 7)
     const range = month === 'all' ? undefined : getBeijingMonthRange(new Date(month + '-15T00:00:00+08:00'))
     const result = await this.employeeRepo.performanceCenter(employee.id, query, range)
+    // 将空合同金额转换为 Decimal 零值，供业绩求和、比较及格式化使用。
     const amount = (value: Prisma.Decimal | null) => value ?? new Prisma.Decimal(0)
     const names = new Map(result.employees.map(item => [item.id, item.user.realName || item.user.nickname || '员工']))
     const grouped = new Map(result.groups.map(group => [group.employeeId, group]))

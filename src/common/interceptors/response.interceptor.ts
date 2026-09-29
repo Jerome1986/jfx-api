@@ -11,6 +11,7 @@ import { SKIP_RESPONSE_WRAP_KEY } from '../decorators/raw-response.decorator';
 
 @Injectable()
 export class ResponseInterceptor implements NestInterceptor {
+  // 注入元数据读取器，判断接口是否跳过统一响应包装。
   constructor(private readonly reflector: Reflector) {}
 
   // 按接口配置统一封装响应数据

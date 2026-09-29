@@ -48,6 +48,7 @@ const availableCouponWhere = (): Prisma.UserCouponWhereInput => {
 
 @Injectable()
 export class UserRepository {
+  // 注入 PrismaService，封装当前模块的数据库访问。
   constructor(private prisma: PrismaService) { }
 
   // 根据用户 ID 查询用户，支持传入事务客户端

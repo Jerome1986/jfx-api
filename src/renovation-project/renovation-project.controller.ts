@@ -9,6 +9,7 @@ import { ConfirmProjectDto } from './dto/confirm-project.dto';
 
 @Controller('renovation-project')
 export class RenovationProjectController {
+  // 注入 RenovationProjectService，将接口请求交给业务服务处理。
   constructor(private readonly renovationProjectService: RenovationProjectService) { }
 
   // 新增装修项目（占位接口）

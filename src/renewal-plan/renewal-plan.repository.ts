@@ -6,6 +6,7 @@ import { UpdateRenewalPlanDto } from './dto/update-renewal-plan.dto'
 
 @Injectable()
 export class RenewalPlanRepository {
+  // 注入 PrismaService，封装当前模块的数据库访问。
   constructor(private prisma: PrismaService) {}
 
   // 新增焕新方案

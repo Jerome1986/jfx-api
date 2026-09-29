@@ -19,6 +19,7 @@ import { SearchProductDto } from './dto/search-product.dto'
 
 @Controller('product')
 export class ProductController {
+  // 注入 ProductService，将接口请求交给业务服务处理。
   constructor(private readonly productService: ProductService) { }
 
   // 新增商品

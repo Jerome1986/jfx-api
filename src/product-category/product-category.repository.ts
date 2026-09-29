@@ -6,6 +6,7 @@ import { UpdateProductCategoryDto } from './dto/update-product-category.dto'
 
 @Injectable()
 export class ProductCategoryRepository {
+  // 注入 PrismaService，封装当前模块的数据库访问。
   constructor(private prisma: PrismaService) { }
 
   // 新增分类

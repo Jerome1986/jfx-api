@@ -29,6 +29,7 @@ import { projectQuoteTotal } from './project-amount'
 
 @Injectable()
 export class AdminProjectService {
+  // 注入 PrismaService，供当前模块的业务校验与流程编排使用。
   constructor(private readonly prisma: PrismaService) {}
 
   // 生成装修项目编号
@@ -65,7 +66,7 @@ export class AdminProjectService {
     return project
   }
 
-  // Conditional update acquires the project row lock and rejects stale state.
+  // 按项目版本、状态和负责人条件更新并锁定记录，拒绝使用过期数据继续操作。
   private async lock(
     tx: Prisma.TransactionClient,
     project: {

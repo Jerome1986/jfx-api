@@ -6,6 +6,7 @@ import { UpdateBannerDto } from './dto/update-banner.dto';
 
 @Controller('banner')
 export class BannerController {
+  // 注入 BannerService，将接口请求交给业务服务处理。
   constructor(private readonly bannerService: BannerService) {}
 
   // 新增轮播图

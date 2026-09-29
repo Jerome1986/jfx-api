@@ -6,6 +6,7 @@ import { UpdateRenewalPlanDto } from './dto/update-renewal-plan.dto'
 
 @Injectable()
 export class RenewalPlanService {
+  // 注入 RenewalPlanRepository，供当前模块的业务校验与流程编排使用。
   constructor(private renewalPlanRepo: RenewalPlanRepository) { }
 
   // 创建焕新方案，并返回新方案 ID

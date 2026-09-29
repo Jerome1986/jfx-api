@@ -7,6 +7,7 @@ import { ServiceCityRepository } from './service-city.repository'
 
 @Injectable()
 export class ServiceCityService {
+  // 注入 ServiceCityRepository，供当前模块的业务校验与流程编排使用。
   constructor(private readonly repository: ServiceCityRepository) {}
 
   // 解析并校验城市后创建城市记录。

@@ -6,6 +6,7 @@ import { UpdateBannerDto } from './dto/update-banner.dto';
 
 @Injectable()
 export class BannerRepository {
+  // 注入 PrismaService，封装当前模块的数据库访问。
   constructor(private prisma: PrismaService) {}
 
   // 新增轮播图

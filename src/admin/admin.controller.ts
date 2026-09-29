@@ -6,6 +6,7 @@ import { LoginAdminDto } from './dto/login-admin.dto';
 
 @Controller('admin')
 export class AdminController {
+  // 注入 AdminService，将接口请求交给业务服务处理。
   constructor(private readonly adminService: AdminService) { }
 
   // 注册管理员

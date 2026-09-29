@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma/prisma.service'
 
 @Injectable()
 export class AdminProjectGuard implements CanActivate {
+  // 注入数据库服务，核实装修项目操作人的管理员状态。
   constructor(private readonly prisma: PrismaService) {}
 
   // 校验后台管理员的装修项目操作权限

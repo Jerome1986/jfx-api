@@ -1,6 +1,6 @@
 import crypto from 'crypto'
 
-// 解密函数
+// 使用 API 密钥、随机串和附加数据执行 AES-256-GCM 解密，校验认证标签后返回解析的 JSON。
 export function decryptWechatData(key, associated_data, ciphertext, nonce) {
   const ctBuffer = Buffer.from(ciphertext, 'base64')
 

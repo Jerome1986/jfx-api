@@ -9,6 +9,7 @@ import { SearchCaseQueryDto } from './dto/search-case-query.dto';
 
 @Controller('case')
 export class CaseController {
+  // 注入 CaseService，将接口请求交给业务服务处理。
   constructor(private readonly caseService: CaseService) { }
 
   // 新增案例

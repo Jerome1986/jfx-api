@@ -5,6 +5,7 @@ import { Prisma } from '../../generated/prisma/client'
 
 @Injectable()
 export class FeedbackRepository {
+  // 注入 PrismaService，封装当前模块的数据库访问。
   constructor(private prisma: PrismaService) { }
 
   // 根据 ID 查询意见反馈

@@ -10,6 +10,7 @@ import type { PreparedOrder } from './types/prepared-order';
 /** 负责订单校验、价格快照和优惠计算；数据库读取使用调用方的事务。 */
 @Injectable()
 export class OrderPreparationService {
+  // 注入 UserCouponRepository，供当前模块的业务校验与流程编排使用。
   constructor(private readonly userCouponRepo: UserCouponRepository) {}
 
   /** 使用事务客户端读取数据，准备价格快照及优惠金额。 */

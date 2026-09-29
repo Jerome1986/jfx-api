@@ -18,6 +18,7 @@ type ServiceOutletUpdateData = Omit<UpdateServiceOutletDto, 'cityId'> & {
 
 @Injectable()
 export class ServiceOutletRepository {
+  // 注入 PrismaService，封装当前模块的数据库访问。
   constructor(private prisma: PrismaService) { }
 
   // 写入一条服务网点记录

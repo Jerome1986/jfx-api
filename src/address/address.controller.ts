@@ -15,6 +15,7 @@ import { UpdateAddressDto } from './dto/update-address.dto';
 
 @Controller('address')
 export class AddressController {
+  // 注入 AddressService，将接口请求交给业务服务处理。
   constructor(private readonly addressService: AddressService) {}
 
   // 新增地址

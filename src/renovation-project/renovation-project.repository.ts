@@ -6,9 +6,10 @@ import { ProjectStatus } from "./dto/query-user-renovation-project.dto";
 
 @Injectable()
 export class RenovationProjectRepository {
+  // 注入 PrismaService，封装当前模块的数据库访问。
   constructor(private prisma: PrismaService) { }
 
-  // 创建项目表
+  // 创建装修项目及传入的关联数据，返回记录时排除历史兼容字段。
   createRenovationProject(data: Prisma.RenovationProjectUncheckedCreateInput) {
     return this.prisma.renovationProject.create({
       omit: legacyProjectOmit,

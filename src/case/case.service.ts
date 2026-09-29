@@ -8,6 +8,7 @@ import { SearchCaseQueryDto } from './dto/search-case-query.dto';
 
 @Injectable()
 export class CaseService {
+  // 注入 caseRepository，供当前模块的业务校验与流程编排使用。
   constructor(private caseRepo: caseRepository) { }
 
   // 新增案例

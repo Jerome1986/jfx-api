@@ -11,6 +11,7 @@ import { UpdateConstructionServiceDto } from './dto/update-construction-service.
 
 @Injectable()
 export class ConstructionServiceService {
+  // 注入 ConstructionServiceRepository，供当前模块的业务校验与流程编排使用。
   constructor(private constructionServiceRepo: ConstructionServiceRepository) {}
 
   // 新增施工服务

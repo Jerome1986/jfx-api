@@ -7,6 +7,7 @@ import { QueryAdminEmployeePerformanceDto } from './dto/query-admin-employee-per
 @Controller('admin/employee/performance')
 @UseGuards(UserJwtGuard, AdminEmployeePerformanceGuard)
 export class AdminEmployeePerformanceController {
+  // 注入 AdminEmployeePerformanceService，将接口请求交给业务服务处理。
   constructor(private readonly service: AdminEmployeePerformanceService) {}
 
   // 后台分页查询所有员工业绩，使用全局响应包装。

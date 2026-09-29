@@ -12,6 +12,7 @@ import { CreateFavoriteDto } from './dto/create-favorite.dto'
 
 @Controller('favorite')
 export class FavoriteController {
+  // 注入 FavoriteService，将接口请求交给业务服务处理。
   constructor(private readonly favoriteService: FavoriteService) {}
 
   // 切换用户对指定案例的收藏状态

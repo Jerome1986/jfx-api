@@ -8,6 +8,7 @@ import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class AdminService {
+  // 注入 AdminRepository、JwtService，供当前模块的业务校验与流程编排使用。
   constructor(
     private adminRepo: AdminRepository,
     private jwtService: JwtService

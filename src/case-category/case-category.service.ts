@@ -6,6 +6,7 @@ import { caseCategoryRepository } from './case-category.repository';
 
 @Injectable()
 export class CaseCategoryService {
+  // 注入 caseCategoryRepository，供当前模块的业务校验与流程编排使用。
   constructor(private caseCategoryRepo: caseCategoryRepository) { }
 
   // 新增分类

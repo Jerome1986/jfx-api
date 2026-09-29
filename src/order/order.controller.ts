@@ -12,6 +12,7 @@ import { QueryAllDto } from './dto/query-all.dto';
 
 @Controller('order')
 export class OrderController {
+  // 注入 OrderService，将接口请求交给业务服务处理。
   constructor(
     private readonly orderService: OrderService,
   ) { }

@@ -6,6 +6,7 @@ import { UpdateAddressDto } from './dto/update-address.dto'
 
 @Injectable()
 export class AddressService {
+  // 注入 AddressRepository，供当前模块的业务校验与流程编排使用。
   constructor(private readonly addressRepo: AddressRepository) {}
 
   // 创建地址

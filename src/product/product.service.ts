@@ -8,6 +8,7 @@ import { SearchProductDto } from './dto/search-product.dto'
 
 @Injectable()
 export class ProductService {
+  // 注入 ProductRepository，供当前模块的业务校验与流程编排使用。
   constructor(private productRepo: ProductRepository) { }
 
   // 新增商品

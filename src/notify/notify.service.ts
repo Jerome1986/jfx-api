@@ -5,6 +5,7 @@ import type { WechatPaySuccessNotify } from './types/wechat-pay-success-notify'
 
 @Injectable()
 export class NotifyService {
+  // 注入 NotifyRepository，供当前模块的业务校验与流程编排使用。
   constructor(private readonly notifyRepo: NotifyRepository) { }
 
   // 微信统一支付回调：验签后的通知解密，再进行业务校验和事务入账。

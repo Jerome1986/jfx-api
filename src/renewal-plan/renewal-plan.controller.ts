@@ -15,6 +15,7 @@ import { UpdateRenewalPlanDto } from './dto/update-renewal-plan.dto'
 
 @Controller('renewal-plan')
 export class RenewalPlanController {
+  // 注入 RenewalPlanService，将接口请求交给业务服务处理。
   constructor(private readonly renewalPlanService: RenewalPlanService) {}
 
   // 新增焕新方案

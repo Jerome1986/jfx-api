@@ -7,6 +7,7 @@ import { QueryCouponDto } from './dto/query-coupon.dto';
 
 @Injectable()
 export class CouponService {
+  // 注入 CouponRepository，供当前模块的业务校验与流程编排使用。
   constructor(private couponRepo: CouponRepository) { }
   // 新建优惠券模板
   create(createCouponDto: CreateCouponDto) {

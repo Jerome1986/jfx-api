@@ -6,6 +6,7 @@ import { QueryCouponDto } from './dto/query-coupon.dto';
 
 @Controller('coupon')
 export class CouponController {
+  // 注入 CouponService，将接口请求交给业务服务处理。
   constructor(private readonly couponService: CouponService) { }
 
   // 新建优惠券模板

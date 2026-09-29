@@ -5,6 +5,7 @@ import { FavoriteRepository } from './favorite.repository'
 
 @Injectable()
 export class FavoriteService {
+  // 注入 FavoriteRepository，供当前模块的业务校验与流程编排使用。
   constructor(private readonly favoriteRepo: FavoriteRepository) {}
 
   // 根据当前收藏状态新增或取消案例收藏

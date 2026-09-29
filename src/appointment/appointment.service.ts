@@ -26,6 +26,7 @@ import { UpdateAppointmentRequirementDto } from './dto/update-appointment-requir
 
 @Injectable()
 export class AppointmentService {
+  // 注入 AppointmentRepository、PrismaService，供当前模块的业务校验与流程编排使用。
   constructor(
     private readonly appointmentRepo: AppointmentRepository,
     private readonly prisma: PrismaService,

@@ -6,6 +6,7 @@ import { ProductCategoryRepository } from './product-category.repository'
 
 @Injectable()
 export class ProductCategoryService {
+  // 注入 ProductCategoryRepository，供当前模块的业务校验与流程编排使用。
   constructor(private productCategoryRepo: ProductCategoryRepository) { }
 
   // 新增分类

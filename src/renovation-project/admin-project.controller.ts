@@ -49,6 +49,7 @@ const success = async (result: Promise<unknown>) => ({
 @UseGuards(UserJwtGuard, AdminProjectGuard)
 @RawResponse()
 export class AdminProjectController {
+  // 注入 AdminProjectService，将接口请求交给业务服务处理。
   constructor(private readonly service: AdminProjectService) {}
 
   // 后台查询装修项目列表
@@ -123,6 +124,7 @@ export class AdminProjectController {
 @UseGuards(UserJwtGuard, AdminProjectGuard)
 @RawResponse()
 export class AppointmentProjectController {
+  // 注入 AdminProjectService，将接口请求交给业务服务处理。
   constructor(private readonly service: AdminProjectService) {}
 
   // 将预约转为装修项目

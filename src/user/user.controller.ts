@@ -25,6 +25,7 @@ export type TestRole = 'CUSTOMER' | 'EMPLOYEE'
 
 @Controller('user')
 export class UserController {
+  // 注入 UserService，将接口请求交给业务服务处理。
   constructor(private readonly userService: UserService) { }
 
   // 前端用户微信手机号登录

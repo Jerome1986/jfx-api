@@ -17,6 +17,7 @@ import { PAYMENT_TIMEOUT_MS, PAYMENT_TIMEOUT_REASON, paymentExpired, paymentExpi
 export class OrderService {
   private readonly logger = new Logger(OrderService.name)
 
+  // 校验订单存在、待付款且未超时，以及用户可用并绑定微信；通过后返回带 OpenID 的订单。
   private validatePayment(order: Awaited<ReturnType<OrderRepository['findForPayment']>>) {
     if (!order) throw new NotFoundException('订单不存在')
     if (order.status !== 'PENDING_PAYMENT' || order.paymentStatus !== 'UNPAID' ||

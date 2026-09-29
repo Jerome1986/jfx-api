@@ -8,6 +8,7 @@ import { UpdateConstructionServiceDto } from './dto/update-construction-service.
 
 @Injectable()
 export class ConstructionServiceRepository {
+  // 注入 PrismaService，封装当前模块的数据库访问。
   constructor(private prisma: PrismaService) {}
 
   // 新增施工服务

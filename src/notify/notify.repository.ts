@@ -5,6 +5,7 @@ import type { WechatPaySuccessNotify } from './types/wechat-pay-success-notify'
 
 @Injectable()
 export class NotifyRepository {
+  // 注入 PrismaService，封装当前模块的数据库访问。
   constructor(private readonly prisma: PrismaService) {}
 
   /** 支付入账及所有关联业务必须同时提交，失败后允许回调重试。 */

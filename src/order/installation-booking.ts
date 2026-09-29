@@ -1,6 +1,6 @@
 import { BadRequestException } from '@nestjs/common'
 
-/** Calendar dates use UTC midnight as a storage carrier, not as an appointment instant. */
+/** 校验安装日期和时段，按北京时间拒绝已开始的预约；返回的 UTC 零点仅用于存储日期，不代表实际预约时刻。 */
 export function parseInstallationBooking(appointmentDate: string, timeSlot: string, now = new Date()) {
   if (typeof appointmentDate !== 'string' || !/^[1-9]\d{3}-\d{2}-\d{2}$/.test(appointmentDate)) {
     throw new BadRequestException('安装日期必须为 YYYY-MM-DD')

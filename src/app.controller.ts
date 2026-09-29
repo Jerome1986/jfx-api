@@ -4,6 +4,7 @@ import { AppService } from './app.service';
 
 @Controller()
 export class AppController {
+  // 注入 AppService，将接口请求交给业务服务处理。
   constructor(private readonly appService: AppService) {}
 
   // 获取应用欢迎信息

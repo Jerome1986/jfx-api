@@ -3,6 +3,7 @@ import { NotifyService } from './notify.service'
 
 @Controller('notify')
 export class NotifyController {
+  // 注入 NotifyService，将接口请求交给业务服务处理。
   constructor(private readonly notifyService: NotifyService) { }
 
   // 支付回调

@@ -4,6 +4,7 @@ import { CreateBudgetAppointmentDto } from './dto/create-budget-appointment.dto'
 
 @Controller('appointment/budget')
 export class BudgetAppointmentController {
+  // 注入 AppointmentService，将接口请求交给业务服务处理。
   constructor(private readonly appointmentService: AppointmentService) { }
 
   // 装修计算器预约提交

@@ -4,6 +4,7 @@ import { OrderService } from './order.service'
 
 @Injectable()
 export class OrderCompletionTask {
+  // 注入订单服务，供定时任务处理支付超时关闭和验收超时完成。
   constructor(private readonly orderService: OrderService) {}
 
   // 与安装自动完成共用任务服务，独立任务名防止重复执行。

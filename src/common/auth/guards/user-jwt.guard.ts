@@ -12,6 +12,7 @@ import type {
 
 @Injectable()
 export class UserJwtGuard implements CanActivate {
+  // 注入 JWT 服务，用于验证请求中的登录令牌。
   constructor(private readonly jwtService: JwtService) { }
 
   // 校验登录令牌并写入当前用户信息

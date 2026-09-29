@@ -17,6 +17,7 @@ import { UpdateConstructionServiceDto } from './dto/update-construction-service.
 
 @Controller('construction-service')
 export class ConstructionServiceController {
+  // 注入 ConstructionServiceService，将接口请求交给业务服务处理。
   constructor(
     private readonly constructionServiceService: ConstructionServiceService,
   ) {}

@@ -7,6 +7,7 @@ import { ProductCategoryService } from './product-category.service'
 
 @Controller('product-category')
 export class ProductCategoryController {
+  // 注入 ProductCategoryService，将接口请求交给业务服务处理。
   constructor(private readonly productCategoryService: ProductCategoryService) { }
 
   // 新增分类

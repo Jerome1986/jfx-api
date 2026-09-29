@@ -16,6 +16,7 @@ import { QueryEmployeePerformanceDto } from './dto/query-employee-performance.dt
 
 @Controller('employee')
 export class EmployeeController {
+  // 注入 EmployeeService，将接口请求交给业务服务处理。
   constructor(private readonly employeeService: EmployeeService) { }
 
   // 新增员工

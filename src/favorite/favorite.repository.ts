@@ -3,6 +3,7 @@ import { PrismaService } from 'src/prisma/prisma.service'
 
 @Injectable()
 export class FavoriteRepository {
+  // 注入 PrismaService，封装当前模块的数据库访问。
   constructor(private prisma: PrismaService) { }
 
   // 查询用户与案例之间的收藏记录

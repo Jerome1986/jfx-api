@@ -6,6 +6,7 @@ import { ServiceCityService } from './service-city.service'
 
 @Controller('service-city')
 export class ServiceCityController {
+  // 注入 ServiceCityService，将接口请求交给业务服务处理。
   constructor(private readonly serviceCityService: ServiceCityService) { }
 
   // 新增服务城市并由后端自动生成行政区划代码。

@@ -9,6 +9,7 @@ import { UpdateAppointmentRequirementDto } from './dto/update-appointment-requir
 
 @Injectable()
 export class AppointmentRepository {
+  // 注入 PrismaService，封装当前模块的数据库访问。
   constructor(private readonly prisma: PrismaService) { }
 
   // 查询预约用户的有效状态和联系方式

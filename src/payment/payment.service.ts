@@ -6,6 +6,7 @@ import axios from 'axios'
 
 @Injectable()
 export class PaymentService {
+  // 注入 ，供当前模块的业务校验与流程编排使用。
   constructor() { }
   // 关闭微信支付订单
   async closeOrder(orderNo: string) {

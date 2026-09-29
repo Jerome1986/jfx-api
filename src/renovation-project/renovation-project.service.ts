@@ -8,6 +8,7 @@ import { ConfirmProjectDto } from './dto/confirm-project.dto';
 
 @Injectable()
 export class RenovationProjectService {
+  // 注入 RenovationProjectRepository，供当前模块的业务校验与流程编排使用。
   constructor(
     private renovationProjectRepo: RenovationProjectRepository
   ) { }

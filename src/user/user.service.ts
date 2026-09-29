@@ -18,6 +18,7 @@ import { UserJwtPayload } from 'src/common/auth/interfaces/user-jwt-payload.inte
 
 @Injectable()
 export class UserService {
+  // 注入 JwtService、WxUtil、UserRepository，供当前模块的业务校验与流程编排使用。
   constructor(
     private readonly jwtService: JwtService,
     private readonly wxUtil: WxUtil,
