@@ -8,10 +8,15 @@ import { AuthModule } from '../common/auth/auth.module';
 import { RenovationProjectRepository } from 'src/renovation-project/renovation-project.repository';
 import { AppointmentModule } from '../appointment/appointment.module';
 
+import { AdminEmployeePerformanceController } from './admin-employee-performance.controller';
+import { AdminEmployeePerformanceService } from './admin-employee-performance.service';
+import { AdminEmployeePerformanceRepository } from './admin-employee-performance.repository';
+import { AdminEmployeePerformanceGuard } from './admin-employee-performance.guard';
+
 // 注册员工模块的控制器、业务服务和数据仓库
 @Module({
   imports: [UserModule, AuthModule, AppointmentModule],
-  controllers: [EmployeeController],
-  providers: [EmployeeService, EmployeeRepository, RenovationProjectRepository],
+  controllers: [EmployeeController, AdminEmployeePerformanceController],
+  providers: [EmployeeService, EmployeeRepository, RenovationProjectRepository, AdminEmployeePerformanceService, AdminEmployeePerformanceRepository, AdminEmployeePerformanceGuard],
 })
 export class EmployeeModule { }
