@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common'
+import { feedbackAlert } from '../common/filters/business-alert'
 import { CreateFeedbackDto } from './dto/create-feedback.dto'
 import { FeedbackRepository } from './feedback.repository'
 import { generateRandomCode } from 'src/utils/random.util'
@@ -136,7 +137,7 @@ export class FeedbackService {
     const pageNum = Number(queryDto.pageNum) || 1
     const pageSize = Number(queryDto.pageSize) || 10
     const keyWords = queryDto.keyWords?.trim()
-    let where: FeedbackWhereInput = {}
+    let where: FeedbackWhereInput = queryDto.alertType ? { AND: [feedbackAlert(new Date())] } : {}
     if (queryDto.status !== 'ALL' && queryDto.status) where.status = queryDto.status
     if (keyWords) {
       // 1.按编号查询

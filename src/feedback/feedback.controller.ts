@@ -1,3 +1,4 @@
+import { AdminGuard } from '../common/auth/guards/admin.guard';
 import { Controller, Get, Post, Body, Patch, Param, ParseIntPipe, UseGuards, Query } from '@nestjs/common';
 import { FeedbackService } from './feedback.service';
 import { CreateFeedbackDto } from './dto/create-feedback.dto';
@@ -43,6 +44,7 @@ export class FeedbackController {
 
   // 后台管理获取所有意见反馈
   @Get('all')
+  @UseGuards(UserJwtGuard, AdminGuard)
   findAll(@Query() queryDto: QueryFeedbackDto) {
     return this.feedbackService.findAll(queryDto)
   }

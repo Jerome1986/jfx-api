@@ -1,3 +1,4 @@
+import { AdminGuard } from '../common/auth/guards/admin.guard';
 import { Controller, Get, Post, Patch, Body, Param, ParseIntPipe, UseGuards, Query, HttpCode } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -62,6 +63,7 @@ export class OrderController {
 
   // 获取所有订单--后台管理
   @Get('all')
+  @UseGuards(UserJwtGuard, AdminGuard)
   findAll(@Query() query: QueryAllDto) {
     return this.orderService.findAll(query)
   }

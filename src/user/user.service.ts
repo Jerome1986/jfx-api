@@ -129,12 +129,12 @@ export class UserService {
     if (!account) throw new NotFoundException('用户不存在')
     if (!account.status) throw new ForbiddenException('账号已被禁用')
     const { start, end } = getBeijingMonthRange()
-    const [monthly, earned, used] = await this.userRepo.scoreSummary(user.userId, start, end)
+    const monthly = await this.userRepo.scoreSummary(user.userId, start, end)
     return {
-      // 收入包含取消订单返还积分，支出包含待支付订单占用积分。
-      monthlyPointsEarned: monthly._sum.change ?? 0,
-      totalPointsEarned: earned._sum.change ?? 0,
-      totalPointsUsed: Math.abs(used._sum.change ?? 0),
+      // 与后台账户保持相同口径，返还不算获得，并冲减累计使用。
+      monthlyPointsEarned: monthly._sum.earned ?? 0,
+      totalPointsEarned: account.totalPointsEarned,
+      totalPointsUsed: account.totalPointsUsed,
       points: account.points,
     }
   }

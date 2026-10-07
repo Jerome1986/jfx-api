@@ -248,22 +248,12 @@ export class UserRepository {
     })
   }
 
-  // 从流水统计，避免依赖尚未同步维护的用户累计字段。
+  // 月度获得按获得总额统计，包含人工增加，排除取消及退款返还。
   scoreSummary(userId: number, start: Date, end: Date) {
-    return Promise.all([
-      this.prisma.pointRecord.aggregate({
-        where: { userId, type: 'INCOME', createdAt: { gte: start, lt: end } },
-        _sum: { change: true },
-      }),
-      this.prisma.pointRecord.aggregate({
-        where: { userId, type: 'INCOME' },
-        _sum: { change: true },
-      }),
-      this.prisma.pointRecord.aggregate({
-        where: { userId, type: 'EXPENSE' },
-        _sum: { change: true },
-      }),
-    ])
+    return this.prisma.pointRecord.aggregate({
+      where: { userId, createdAt: { gte: start, lt: end } },
+      _sum: { earned: true },
+    })
   }
 
   // 获取用户积分明细

@@ -1,4 +1,5 @@
 // 文件说明：应用根模块，集中注册各业务模块。
+import { DashboardModule } from './dashboard/dashboard.module';
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -27,6 +28,8 @@ import { UserCouponModule } from './user-coupon/user-coupon.module';
 import { PaymentModule } from './payment/payment.module';
 import { NotifyModule } from './notify/notify.module';
 import { FeedbackModule } from './feedback/feedback.module';
+import { PointRuleModule } from './point-rule/point-rule.module';
+import { PointModule } from './point/point.module';
 
 @Module({
   imports: [
@@ -56,7 +59,10 @@ import { FeedbackModule } from './feedback/feedback.module';
     UserCouponModule,
     PaymentModule,
     NotifyModule,
-    FeedbackModule
+    FeedbackModule,
+    PointModule,
+    DashboardModule,
+    PointRuleModule
   ],
   controllers: [AppController],
   providers: [AppService],

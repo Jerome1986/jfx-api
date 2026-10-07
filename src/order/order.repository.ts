@@ -1,3 +1,5 @@
+import { installationAlert } from '../common/filters/business-alert';
+import { writePointChange } from '../point/point-ledger';
 import type { ArrangeInstallationDto } from './dto/arrange-installation.dto';
 import { ConflictException, Injectable } from "@nestjs/common";
 import { Prisma } from '../../generated/prisma/client';
@@ -167,12 +169,9 @@ export class OrderRepository {
 
   // 返还用户积分并记录积分流水。
   async restorePoints(userId: number, points: number, orderNo: string, tx: Prisma.TransactionClient) {
-    const account = await tx.user.update({ where: { id: userId }, data: { points: { increment: points } } })
-    return tx.pointRecord.create({
-      data: {
-        userId, type: 'INCOME', businessType: 'PRODUCT_ORDER', relatedNo: orderNo,
-        change: points, balance: account.points, description: '取消待支付订单返还积分',
-      }
+    return writePointChange(tx, {
+      userId, amount: points, orderNo, flowType: 'CANCEL_RETURN',
+      reason: '取消待支付订单返还积分',
     })
   }
 
@@ -205,20 +204,11 @@ export class OrderRepository {
       })
     }
 
-    // 2. 当前没有冻结字段，先扣可用积分；支付成功时不能再次扣减。
-    // 取消订单时需返还积分并记录对应流水；累计使用积分在支付成功时再更新。
+    // 2. 下单时扣可用积分并计入累计使用，取消时返还并冲减累计使用。
     if (pointsUsed > 0) {
-      const changed = await tx.user.updateMany({
-        where: { id: userId, status: true, points: { gte: pointsUsed } },
-        data: { points: { decrement: pointsUsed } },
-      })
-      if (changed.count !== 1) throw new ConflictException('积分余额不足或账号状态已变化')
-      const account = await tx.user.findUniqueOrThrow({ where: { id: userId }, select: { points: true } })
-      await tx.pointRecord.create({
-        data: {
-          userId, type: 'EXPENSE', businessType: 'PRODUCT_ORDER', relatedNo: data.orderNo,
-          change: -pointsUsed, balance: account.points, description: '待支付订单占用积分',
-        },
+      await writePointChange(tx, {
+        userId, amount: pointsUsed, orderNo: data.orderNo,
+        flowType: 'ORDER_DEDUCT', reason: '待支付订单占用积分', requireEnabled: true,
       })
     }
 
@@ -288,6 +278,7 @@ export class OrderRepository {
     const { status, keyWords, createdAtStart, createdAtEnd } = query
     const keyword = keyWords?.trim()
     const where: Prisma.ProductOrderWhereInput = {
+      ...(query.alertType ? { AND: [installationAlert(new Date())] } : {}),
       ...(status && status !== 'ALL' ? { status } : {}),
 
       ...(keyword ? {

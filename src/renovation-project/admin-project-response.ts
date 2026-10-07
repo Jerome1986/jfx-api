@@ -18,6 +18,7 @@ export function toAdminProject(project: Project, detail = true) {
   const base = {
     id: project.id,
     projectNo: project.projectNo,
+    plannedCompletionDate: project.plannedCompletionDate?.toISOString().slice(0, 10) ?? null,
     name: project.name,
     appointmentId: project.appointmentId,
     userId: project.userId,

@@ -1,3 +1,4 @@
+import { AdminGuard } from '../common/auth/guards/admin.guard'
 import { INestApplication } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import { Test } from '@nestjs/testing'
@@ -38,7 +39,7 @@ describe('User order detail HTTP', () => {
         { provide: OrderService, useValue: service },
         { provide: JwtService, useValue: jwt },
       ],
-    }).compile()
+    }).overrideGuard(AdminGuard).useValue({ canActivate: () => true }).compile()
     app = module.createNestApplication()
     app.setGlobalPrefix('api')
     app.useGlobalInterceptors(new ResponseInterceptor(app.get(Reflector)))

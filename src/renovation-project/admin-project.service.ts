@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common'
+import { projectAlert } from '../common/filters/business-alert'
 import { plainToInstance } from 'class-transformer'
 import { validate } from 'class-validator'
 import { randomBytes } from 'node:crypto'
@@ -186,6 +187,7 @@ export class AdminProjectService {
   // 后台查询装修项目列表
   async list(query: QueryAdminProjectDto) {
     const where: Prisma.RenovationProjectWhereInput = {
+      ...(query.alertType ? { AND: [projectAlert(new Date())] } : {}),
       ...(query.status === 'ALL' ? {} : { status: query.status }),
       ...(query.keyword
         ? {
@@ -240,6 +242,7 @@ export class AdminProjectService {
       const project = await tx.renovationProject.create({
         data: {
           ...dto,
+          plannedCompletionDate: dto.plannedCompletionDate ? new Date(dto.plannedCompletionDate + 'T00:00:00.000Z') : null,
           serviceAddress: dto.serviceAddress ?? '',
           remark: dto.remark ?? '',
           projectNo: this.projectNo(),
@@ -256,7 +259,7 @@ export class AdminProjectService {
   async edit(id: number, dto: EditAdminProjectDto) {
     if (
       !Object.keys(dto).length ||
-      Object.values(dto).some((value) => value === null)
+      Object.entries(dto).some(([key, value]) => value === null && key !== 'plannedCompletionDate')
     )
       throw new BadRequestException('请提交有效的项目修改字段')
     return this.transaction(async (tx) => {
@@ -265,7 +268,11 @@ export class AdminProjectService {
       return toAdminProject(
         await tx.renovationProject.update({
           where: { id },
-          data: { ...dto, updatedAt },
+          data: {
+            ...dto, updatedAt,
+            plannedCompletionDate: dto.plannedCompletionDate === undefined ? undefined
+              : dto.plannedCompletionDate === null ? null : new Date(dto.plannedCompletionDate + 'T00:00:00.000Z'),
+          },
           include: adminProjectInclude,
         }),
       )

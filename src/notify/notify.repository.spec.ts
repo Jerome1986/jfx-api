@@ -40,16 +40,16 @@ describe('商品支付回调入账', () => {
     tx.userCoupon.updateMany.mockReset().mockResolvedValue({ count: 1 })
     tx.installationOrder.create.mockReset().mockResolvedValue({ id: 1 })
   })
-  it('首次支付核销券、累计积分并创建安装单，不再扣可用积分', async () => {
+  it('首次支付核销券并创建安装单，不重复扣减或累计积分', async () => {
     await repo.proNotify(result)
     expect(tx.productOrder.updateMany).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: 1, status: 'PENDING_PAYMENT', paymentStatus: 'UNPAID', paymentNo: null },
       data: expect.objectContaining({ paymentNo: 'wx1', paymentStatus: 'PAID', status: 'PENDING_INSTALLATION' }),
     }))
-    expect(tx.user.update).toHaveBeenCalledWith({ where: { id: 2 }, data: { totalPointsUsed: { increment: 10 } } })
+    expect(tx.user.update).not.toHaveBeenCalled()
     expect(tx.userCoupon.updateMany).toHaveBeenCalledTimes(1)
     expect(tx.installationOrder.create).toHaveBeenCalledWith({ data: expect.objectContaining({
-      appointmentDate: new Date('2026-09-25T00:00:00Z'), timeSlot: '09:00-12:00', status: 'PENDING_ASSIGNMENT',
+      appointmentDate: new Date('2026-09-25T00:00:00Z'), timeSlot: '09:00-12:00', scheduledEndAt: new Date('2026-09-25T04:00:00Z'), status: 'PENDING_ASSIGNMENT',
     }) })
   })
   it.each(['PAID', 'REFUNDING', 'REFUNDED'])('已入账的重复通知不改变后续状态 %s', async paymentStatus => {
@@ -95,7 +95,7 @@ describe('商品支付回调入账', () => {
     tx.productOrder.findUnique.mockResolvedValue({ ...makeOrder(), appointmentDate: null, timeSlot: null })
     await repo.proNotify(result)
     expect(tx.installationOrder.create).toHaveBeenCalledWith({ data: expect.objectContaining({
-      appointmentDate: null, timeSlot: null, status: 'PENDING_APPOINTMENT',
+      appointmentDate: null, timeSlot: null, scheduledEndAt: null, status: 'PENDING_APPOINTMENT',
     }) })
   })
 })

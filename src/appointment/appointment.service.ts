@@ -16,6 +16,7 @@ import { AppointmentRepository } from './appointment.repository'
 import { CreateFollowUpDto } from './dto/create-follow-up.dto'
 import { CreatePlanAppointmentDto } from './dto/create-plan-appointment.dto'
 import { CreateCaseAppointmentDto } from './dto/create-case-appointment.dto'
+import { QueryAppointmentListDto } from './dto/query-appointment-list.dto'
 import { AppointmentTypeFilter, QueryPlanAppointmentDto } from './dto/query-plan-appointment.dto'
 import { CreateBudgetAppointmentDto } from './dto/create-budget-appointment.dto'
 import type { UserJwtPayload } from '../common/auth/interfaces/user-jwt-payload.interface'
@@ -182,9 +183,15 @@ export class AppointmentService {
 
   // 获取预约列表；不传类型或传 ALL 时查询全部预约
   async GetPlanAll(
-    query: QueryPlanAppointmentDto,
-    user: UserJwtPayload
+    query: QueryAppointmentListDto,
+    user: { userId: number; type: string }
   ) {
+    if (user.type === 'admin') {
+      const admin = await this.prisma.admin.findUnique({ where: { id: user.userId }, select: { status: true } })
+      if (!admin?.status) throw new ForbiddenException('管理员账号不存在或已禁用')
+    } else if (user.type !== 'user' || query.alertType) {
+      throw new ForbiddenException('仅后台管理员可查询异常预约')
+    }
     const pageNum = Number(query.pageNum) || 1
     const pageSize = Number(query.pageSize) || 10
     const userId = user.userId
@@ -193,10 +200,11 @@ export class AppointmentService {
     const appointmentType: AppointmentType | undefined =
       type && type !== 'ALL' ? type : undefined
     const [list, total] = await this.appointmentRepo.GetPlanAll(
-      userId,
+      user.type === 'admin' ? undefined : userId,
       pageNum,
       pageSize,
       appointmentType,
+      query.alertType,
     )
 
     return {

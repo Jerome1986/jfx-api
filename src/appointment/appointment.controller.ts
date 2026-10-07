@@ -10,6 +10,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common'
+import { QueryAppointmentListDto } from './dto/query-appointment-list.dto'
 import { AppointmentService } from './appointment.service'
 import { CreateFollowUpDto } from './dto/create-follow-up.dto'
 import { CreatePlanAppointmentDto } from './dto/create-plan-appointment.dto'
@@ -55,7 +56,7 @@ export class AppointmentController {
   // 获取预约列表，可按预约类型筛选
   @Get()
   @UseGuards(UserJwtGuard)
-  GetPlanAll(@Query() query: QueryPlanAppointmentDto, @CurrentUser('user') user: UserJwtPayload) {
+  GetPlanAll(@Query() query: QueryAppointmentListDto, @CurrentUser('user') user: { userId: number; type: string }) {
     return this.appointmentService.GetPlanAll(query, user)
   }
 

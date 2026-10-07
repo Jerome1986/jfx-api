@@ -1,7 +1,11 @@
-import { IsDateString, IsEnum, IsOptional, IsString } from "class-validator"
+import { IsDateString, IsEnum, IsIn, IsOptional, IsString } from "class-validator"
 import { ProductOrderStatus } from "../../../generated/prisma/enums"
 
 export class QueryAllDto {
+  @IsOptional()
+  @IsIn(['overdue'])
+  alertType?: 'overdue'
+
   @IsOptional()
   @IsEnum([...Object.values(ProductOrderStatus), 'ALL'])
   status: ProductOrderStatus | 'ALL'

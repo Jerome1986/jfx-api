@@ -1,3 +1,4 @@
+import { appointmentAlert } from '../common/filters/business-alert'
 import { legacyProjectOmit } from '../renovation-project/legacy-project-fields';
 // 文件说明：预约数据仓储，封装预约相关数据库访问。
 import { Injectable } from '@nestjs/common'
@@ -87,8 +88,8 @@ export class AppointmentRepository {
   }
 
   // 查询预约列表；未传预约类型时查询全部
-  async GetPlanAll(userId: number, pageNum: number, pageSize: number, type?: AppointmentType) {
-    const where: Prisma.AppointmentWhereInput = { userId }
+  async GetPlanAll(userId: number | undefined, pageNum: number, pageSize: number, type?: AppointmentType, alertType?: 'uncontacted' | 'unassigned') {
+    const where: Prisma.AppointmentWhereInput = { userId, ...(alertType ? { AND: [appointmentAlert(alertType, new Date())] } : {}) }
     if (type) where.type = type
 
     return await Promise.all([

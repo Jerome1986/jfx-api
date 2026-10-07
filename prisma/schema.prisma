@@ -193,6 +193,8 @@ model User {
   tags              Json?
   /// 当前可用积分
   points            Int      @default(0)
+  /// 待追回积分，独立于可用余额
+  pointDebt Int @default(0) @map("point_debt")
   /// 累计获得积分
   totalPointsEarned Int      @default(0) @map("total_points_earned")
   /// 累计使用积分
@@ -301,6 +303,8 @@ model Admin {
   feedbacks     Feedback[]
   /// 关联操作日志列表
   operationLogs OperationLog[]
+  /// 最近由该管理员修改的积分规则
+  pointRules    PointRule[]
 
   @@map("admin")
 }
@@ -840,6 +844,8 @@ model FollowUp {
 
 // 装修项目表：保存由预约转化的装修项目及成交信息
 model RenovationProject {
+  /// 计划完成日期，当日结束后未完成视为逾期
+  plannedCompletionDate DateTime? @map("planned_completion_date") @db.Date
   /// 后台项目备注与最新进度摘要
   remark               String                  @default("") @db.VarChar(5000)
   progress             String                  @default("") @db.VarChar(5000)
@@ -906,6 +912,7 @@ model RenovationProject {
   @@index([userId, createdAt])
   @@index([employeeId, status, quoteConfirmedAt], map: "project_employee_status_confirmed_idx")
   @@index([status, completedAt, employeeId], map: "project_status_completed_employee_idx")
+  @@index([status, plannedCompletionDate], map: "project_status_planned_completion_idx")
   @@map("renovation_project")
 }
 
@@ -1095,6 +1102,8 @@ model ProductOrderItem {
 
 // 安装服务单表：保存商品订单的安装预约及服务过程
 model InstallationOrder {
+  /// 预约时段结束时刻，按北京时间计算后保存 UTC
+  scheduledEndAt DateTime? @map("scheduled_end_at")
   /// 客户主动确认时间，与安装完工时间区分
   customerConfirmedAt DateTime?          @map("customer_confirmed_at")
   /// 线下安装人员或团队名称，不关联员工账号
@@ -1149,6 +1158,7 @@ model InstallationOrder {
 
   @@index([status, employeeId])
   @@index([appointmentDate])
+  @@index([status, scheduledEndAt], map: "installation_status_scheduled_end_idx")
   @@map("installation_order")
 }
 
@@ -1171,7 +1181,7 @@ model PointRecord {
   /// 变动后积分余额
   balance      Int
   /// 描述
-  description  String?
+  description  String? @db.VarChar(300)
   /// 操作人
   operator     String?
   /// 过期时间
@@ -1179,10 +1189,30 @@ model PointRecord {
   /// 创建时间
   createdAt    DateTime        @default(now()) @map("created_at")
 
-  /// 关联积分所属用户
+  /// 后台业务类型；历史无法识别的记录保留 LEGACY_* 类型
+  flowType String @default("LEGACY") @map("flow_type") @db.VarChar(32)
+  /// 变动前可用余额
+  balanceBefore Int @default(0) @map("balance_before")
+  debtBefore Int @default(0) @map("debt_before")
+  debtAfter Int @default(0) @map("debt_after")
+  /// 获得总额及抵偿数量，仅获得类流水填写
+  earned Int?
+  offset Int?
+  /// 关联订单及退款单快照
+  orderId Int? @map("order_id")
+  orderNo String? @map("order_no") @db.VarChar(100)
+  refundNo String? @map("refund_no") @db.VarChar(100)
+  /// 人工调整审计与幂等信息
+  operatorId Int? @map("operator_id")
+  requestId String? @unique @map("request_id") @db.VarChar(100)
+  amount Int?
+  source String?
+
   user User @relation(fields: [userId], references: [id])
 
   @@index([userId, createdAt])
+  @@index([createdAt, id])
+  @@index([flowType, createdAt])
   @@index([expiresAt])
   @@map("point_record")
 }
@@ -1458,4 +1488,39 @@ model OperationLog {
   @@index([adminId, createdAt])
   @@index([createdAt])
   @@map("operation_log")
+}
+
+// 积分规则表：当前全局配置；历史订单需另存下单时的规则快照。
+// 全局规则约定使用 id = 1；比例不设默认值，由管理员明确配置后创建。
+model PointRule {
+  /// 全局规则固定 ID，不使用自增
+  id            Int      @id @default(1)
+  /// 购物赠送开关，关闭时保留比例
+  rewardEnabled Boolean  @default(false) @map("reward_enabled")
+  /// 每实付多少元参与奖励，必须大于 0
+  rewardYuan    Decimal  @map("reward_yuan") @db.Decimal(10, 2)
+  /// 对应赠送积分，必须为正整数
+  rewardPoints  Int      @map("reward_points")
+  /// 积分抵扣开关，关闭时保留比例
+  deductEnabled Boolean  @default(false) @map("deduct_enabled")
+  /// 每次兑换所需积分，必须为正整数
+  deductPoints  Int      @map("deduct_points")
+  /// 对应抵扣金额，必须大于 0
+  deductYuan    Decimal  @map("deduct_yuan") @db.Decimal(10, 2)
+  /// 单笔抵扣上限百分比，范围 0～100
+  limit         Int
+  /// 规则版本，保存规则时由业务层递增
+  version       Int      @default(1)
+  /// 最后修改规则的管理员 ID，从登录信息获取
+  updatedById   Int      @map("updated_by_id")
+  /// 创建时间
+  createdAt     DateTime @default(now()) @map("created_at")
+  /// 更新时间
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  /// 关联最后修改规则的管理员，保留操作人追溯关系
+  updatedBy Admin @relation(fields: [updatedById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([updatedById])
+  @@map("point_rule")
 }

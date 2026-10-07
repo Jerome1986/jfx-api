@@ -1,3 +1,4 @@
+import { installationScheduledEnd } from '../order/installation-booking'
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common'
 import { Prisma } from '../../generated/prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
@@ -60,13 +61,7 @@ export class NotifyRepository {
         throw new ConflictException('订单优惠券占用记录缺失')
       }
 
-      // 库存和可用积分在下单时已扣减，此处只累计实际使用积分。
-      if (order.pointsUsed > 0) {
-        await tx.user.update({
-          where: { id: order.userId },
-          data: { totalPointsUsed: { increment: order.pointsUsed } },
-        })
-      }
+      // 积分余额及累计使用已在下单事务中更新，支付成功不重复累计。
 
       // 当前商品均包安装；每个商品订单只对应一张安装服务单。
       await tx.installationOrder.create({
@@ -75,6 +70,7 @@ export class NotifyRepository {
           customerName: order.contactName, mobile: order.contactPhone,
           serviceAddress: order.serviceAddress,
           appointmentDate: order.appointmentDate,
+          scheduledEndAt: installationScheduledEnd(order.appointmentDate, order.timeSlot),
           timeSlot: order.timeSlot,
           // Legacy orders without a complete booking still need confirmation.
           status: order.appointmentDate && order.timeSlot ? 'PENDING_ASSIGNMENT' : 'PENDING_APPOINTMENT',

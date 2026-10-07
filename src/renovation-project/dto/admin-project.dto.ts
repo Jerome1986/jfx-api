@@ -30,6 +30,10 @@ const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value
 
 export class QueryAdminProjectDto {
+  @IsOptional()
+  @IsIn(['overdue'])
+  alertType?: 'overdue'
+
   @Type(() => Number)
   @IsInt()
   @Min(1)
@@ -59,6 +63,11 @@ export class QueryAdminProjectDto {
 }
 
 export class CreateAdminProjectDto {
+  @IsOptional()
+  @Matches(/^[1-9]\d{3}-\d{2}-\d{2}$/)
+  @IsISO8601({ strict: true })
+  plannedCompletionDate?: string | null
+
   @Transform(trim)
   @IsString()
   @MinLength(1)
@@ -112,6 +121,7 @@ export class EditAdminProjectDto extends PartialType(
     'mobile',
     'serviceAddress',
     'remark',
+    'plannedCompletionDate',
   ] as const),
   { skipNullProperties: false },
 ) {}

@@ -67,6 +67,7 @@ describe('cancel order resources', () => {
       },
       product: { update: jest.fn().mockResolvedValue({ stock: 15 }) },
       stockLog: { create: jest.fn() },
+      $queryRaw: jest.fn().mockResolvedValue([{ id: 7, points: 100, pointDebt: 0, totalPointsEarned: 110, totalPointsUsed: 10, status: true }]),
       user: { update: jest.fn().mockResolvedValue({ points: 110 }) },
       pointRecord: { create: jest.fn() },
       userCoupon: { updateMany: jest.fn() },
@@ -81,7 +82,7 @@ describe('cancel order resources', () => {
     expect(tx.product.update).toHaveBeenCalledTimes(1)
     expect(tx.product.update).toHaveBeenCalledWith({ where: { id: 2 }, data: { stock: { increment: 5 } } })
     expect(tx.stockLog.create).toHaveBeenCalledWith({ data: expect.objectContaining({ type: 'CANCEL_RELEASE', change: 5, stock: 15 }) })
-    expect(tx.user.update).toHaveBeenCalledWith({ where: { id: 7 }, data: { points: { increment: 10 } } })
+    expect(tx.user.update).toHaveBeenCalledWith({ where: { id: 7 }, data: { points: 110, pointDebt: 0, totalPointsEarned: 110, totalPointsUsed: 0 } })
     expect(tx.pointRecord.create).toHaveBeenCalledWith({ data: expect.objectContaining({ change: 10, balance: 110 }) })
     expect(tx.userCoupon.updateMany).toHaveBeenCalledWith({ where: { orderId: 1, userId: 7, status: 'AVAILABLE' }, data: { orderId: null } })
     expect(tx.productOrder.updateMany).toHaveBeenCalledWith(expect.objectContaining({

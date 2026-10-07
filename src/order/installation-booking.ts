@@ -18,3 +18,12 @@ export function parseInstallationBooking(appointmentDate: string, timeSlot: stri
   if (startsAt <= now) throw new BadRequestException('请选择尚未开始的安装时段')
   return { appointmentDate: date, timeSlot }
 }
+
+/** 日期为日历日期；历史缺失或无效时段不推算结束时间。 */
+export function installationScheduledEnd(date: Date | null, timeSlot: string | null): Date | null {
+  if (!date || !Number.isFinite(date.getTime()) || !timeSlot ||
+      !/^(?:[01]\d|2[0-3]):[0-5]\d-(?:[01]\d|2[0-3]):[0-5]\d$/.test(timeSlot)) return null
+  const [start, end] = timeSlot.split('-')
+  if (start >= end) return null
+  return new Date(date.toISOString().slice(0, 10) + 'T' + end + ':00+08:00')
+}

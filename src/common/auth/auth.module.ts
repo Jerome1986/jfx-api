@@ -1,3 +1,4 @@
+import { AdminGuard } from './guards/admin.guard'
 import { Module } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { JwtModule } from '@nestjs/jwt'
@@ -15,7 +16,7 @@ import { UserJwtGuard } from './guards/user-jwt.guard'
       }),
     }),
   ],
-  providers: [UserJwtGuard],
-  exports: [JwtModule, UserJwtGuard],
+  providers: [UserJwtGuard, AdminGuard],
+  exports: [JwtModule, UserJwtGuard, AdminGuard],
 })
 export class AuthModule {}

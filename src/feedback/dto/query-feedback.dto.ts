@@ -3,6 +3,10 @@ import { FeedbackStatus } from "../../../generated/prisma/enums"
 
 export class QueryFeedbackDto {
   @IsOptional()
+  @IsIn(['overdue'])
+  alertType?: 'overdue'
+
+  @IsOptional()
   @IsString()
   keyWords?: string
 
