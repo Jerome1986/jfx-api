@@ -34,6 +34,9 @@ export function toAdminProject(project: Project, detail = true) {
         ? null
         : project.quotedAmount.toFixed(2),
     contractAmount: project.contractAmount?.toFixed(2) ?? null,
+    couponDiscount: project.couponDiscount.toFixed(2),
+    couponSnapshot: project.couponSnapshot,
+    couponReturnedAt: project.couponReturnedAt,
     quoteVersion: project.quoteVersion,
     status: project.status,
     progress: project.progress,

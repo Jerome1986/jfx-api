@@ -1,6 +1,6 @@
 // 文件说明：续费方案数据仓储，封装数据库访问操作。
 import { Injectable } from '@nestjs/common'
-import { PrismaService } from 'src/prisma/prisma.service'
+import { PrismaService } from '../prisma/prisma.service'
 import { CreateRenewalPlanDto } from './dto/create-renewal-plan.dto'
 import { UpdateRenewalPlanDto } from './dto/update-renewal-plan.dto'
 
@@ -16,6 +16,8 @@ export class RenewalPlanRepository {
     return this.prisma.renewalPlan.create({
       data: {
         ...planData,
+        cover: planData.cover ?? [],
+        detail: planData.detail ?? [],
         items: {
           create: items,
         },
@@ -28,7 +30,7 @@ export class RenewalPlanRepository {
     return this.prisma.renewalPlan.findMany({
       include: {
         items: {
-          include: { product: true },
+          include: { product: { include: { skus: { where: { deletedAt: null, isEnabled: true }, orderBy: { sort: 'asc' } } } } },
           orderBy: { sort: 'asc' },
         },
       },
@@ -42,7 +44,7 @@ export class RenewalPlanRepository {
       where: { id },
       include: {
         items: {
-          include: { product: true },
+          include: { product: { include: { skus: { where: { deletedAt: null, isEnabled: true }, orderBy: { sort: 'asc' } } } } },
           orderBy: { sort: 'asc' },
         },
       },

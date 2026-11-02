@@ -12,7 +12,7 @@ jest.mock('../../generated/prisma/client', () => ({
 const makeOrder = () => ({
   id: 1, userId: 7, orderNo: 'order1', status: 'PENDING_PAYMENT', paymentStatus: 'UNPAID',
   paymentNo: null, paidAt: null, pointsUsed: 10, appointmentDate: null, timeSlot: null, installation: null,
-  items: [{ productId: 2, quantity: 2 }, { productId: 2, quantity: 3 }, { productId: null, quantity: 1 }],
+  items: [{ productId: 2, skuId: 2, quantity: 2 }, { productId: 2, skuId: 2, quantity: 3 }],
 })
 
 describe('cancel order service', () => {
@@ -65,7 +65,7 @@ describe('cancel order resources', () => {
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         findUniqueOrThrow: jest.fn().mockResolvedValue({ ...makeOrder(), status: 'CANCELED', paymentStatus: 'CLOSED' }),
       },
-      product: { update: jest.fn().mockResolvedValue({ stock: 15 }) },
+      productSku: { update: jest.fn().mockResolvedValue({ stock: 15, productId: 2 }) },
       stockLog: { create: jest.fn() },
       $queryRaw: jest.fn().mockResolvedValue([{ id: 7, points: 100, pointDebt: 0, totalPointsEarned: 110, totalPointsUsed: 10, status: true }]),
       user: { update: jest.fn().mockResolvedValue({ points: 110 }) },
@@ -79,8 +79,8 @@ describe('cancel order resources', () => {
   it('returns merged stock and points and releases the coupon within one transaction', async () => {
     const result = await service.cancel(1, { userId: 7, type: 'user' })
     expect(result?.status).toBe('CANCELED')
-    expect(tx.product.update).toHaveBeenCalledTimes(1)
-    expect(tx.product.update).toHaveBeenCalledWith({ where: { id: 2 }, data: { stock: { increment: 5 } } })
+    expect(tx.productSku.update).toHaveBeenCalledTimes(1)
+    expect(tx.productSku.update).toHaveBeenCalledWith({ where: { id: 2 }, data: { stock: { increment: 5 } } })
     expect(tx.stockLog.create).toHaveBeenCalledWith({ data: expect.objectContaining({ type: 'CANCEL_RELEASE', change: 5, stock: 15 }) })
     expect(tx.user.update).toHaveBeenCalledWith({ where: { id: 7 }, data: { points: 110, pointDebt: 0, totalPointsEarned: 110, totalPointsUsed: 0 } })
     expect(tx.pointRecord.create).toHaveBeenCalledWith({ data: expect.objectContaining({ change: 10, balance: 110 }) })
@@ -93,7 +93,7 @@ describe('cancel order resources', () => {
     tx.productOrder.updateMany.mockResolvedValue({ count: 0 })
     tx.productOrder.findFirst.mockReset().mockResolvedValue(makeOrder())
     await expect(service.cancel(1, { userId: 1, type: 'admin' })).rejects.toThrow(ConflictException)
-    expect(tx.product.update).not.toHaveBeenCalled()
+    expect(tx.productSku.update).not.toHaveBeenCalled()
     expect(tx.user.update).not.toHaveBeenCalled()
   })
   it('does not release resources twice when another cancellation wins', async () => {
@@ -102,7 +102,7 @@ describe('cancel order resources', () => {
       ...makeOrder(), status: 'CANCELED', paymentStatus: 'CLOSED',
     })
     await service.cancel(1, { userId: 1, type: 'admin' })
-    expect(tx.product.update).not.toHaveBeenCalled()
+    expect(tx.productSku.update).not.toHaveBeenCalled()
     expect(tx.user.update).not.toHaveBeenCalled()
   })
   it('propagates resource failures to abort the transaction', async () => {

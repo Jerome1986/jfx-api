@@ -58,7 +58,7 @@ export class RenovationProjectService {
     if (!project.quoteItems.length) throw new BadRequestException('请先保存报价明细')
     if (project.quoteVersion !== dto.quoteVersion) throw new ConflictException('报价已更新，请刷新后重新确认')
     try {
-      return await this.renovationProjectRepo.confirmProject(id, user.userId, project)
+      return await this.renovationProjectRepo.confirmProject(id, user.userId, project, dto.userCouponId)
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && ['P2025', 'P2034'].includes(error.code)) {
         throw new ConflictException('项目状态或报价已变化，请刷新后重新确认')

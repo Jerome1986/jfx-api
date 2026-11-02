@@ -182,16 +182,30 @@ export class EmployeeRepository {
 
   // 条件更新与确认、完工竞争同一项目，保留所有报价及来源数据。
   cancelProject(id: number, employeeId: number, dto: CancelProjectDto) {
-    return this.prisma.renovationProject.update({
-      omit: legacyProjectOmit,
-      where: { id, employeeId, status: dto.expectedStatus },
-      data: {
-        status: 'CANCELED', cancelReason: dto.reason.trim(),
-        canceledAt: new Date(), canceledByEmployeeId: employeeId,
-        progress: dto.reason.trim(),
-        progresses: { create: { status: 'CANCELED', content: dto.reason.trim(), createdBy: `employee:${employeeId}` } },
-      },
-      include: employeeProjectDetailInclude,
+    return this.prisma.$transaction(async (tx) => {
+      const now = new Date()
+      const project = await tx.renovationProject.update({
+        omit: legacyProjectOmit,
+        where: { id, employeeId, status: dto.expectedStatus },
+        data: {
+          status: 'CANCELED', cancelReason: dto.reason.trim(), canceledAt: now, canceledByEmployeeId: employeeId,
+          progress: dto.reason.trim(),
+          progresses: { create: { status: 'CANCELED', content: dto.reason.trim(), createdBy: `employee:${employeeId}` } },
+        },
+        include: employeeProjectDetailInclude,
+      })
+      // 保留成交快照；仅释放本项目实际核销的券，不延长原有效期。
+      const coupon = await tx.userCoupon.findUnique({ where: { projectId: id } })
+      if (coupon) {
+        await tx.userCoupon.update({
+          where: { id: coupon.id, projectId: id },
+          data: { projectId: null, usedAt: null, status: coupon.expiresAt > now ? 'AVAILABLE' : 'EXPIRED' },
+        })
+        return tx.renovationProject.update({
+          omit: legacyProjectOmit, where: { id }, data: { couponReturnedAt: now }, include: employeeProjectDetailInclude,
+        })
+      }
+      return project
     })
   }
 

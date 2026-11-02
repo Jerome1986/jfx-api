@@ -4,6 +4,8 @@ import { QueryProductDto } from './dto/query-product.dto'
 import { productQueryWhere, ProductRepository } from './product.repository'
 import { ProductService } from './product.service'
 import { PrismaService } from '../prisma/prisma.service'
+import { CreateProductDto } from './dto/create-product.dto'
+import { UpdateProductDto } from './dto/update-product.dto'
 
 const pipe = new ValidationPipe({
   transform: true,
@@ -15,6 +17,59 @@ const parse = (query: unknown): Promise<QueryProductDto> =>
     type: 'query',
     metatype: QueryProductDto,
   })
+
+describe('SKU 编辑保存', () => {
+  it.each([[], null])('拒绝空 SKU 列表 %p', async (skus) => {
+    await expect(pipe.transform({ skus }, { type: 'body', metatype: UpdateProductDto })).rejects.toThrow()
+    const repo = new ProductRepository({} as PrismaService)
+    await expect(repo.update(1, { skus: skus as never })).rejects.toThrow('至少提供一个SKU')
+  })
+
+  it('完整列表保留已有和新增 SKU，并软删除缺失项', async () => {
+    const tx = {
+      product: { update: jest.fn(), findUniqueOrThrow: jest.fn() },
+      productSku: {
+        findFirst: jest.fn().mockResolvedValue({ id: 11, stock: 1 }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        create: jest.fn().mockResolvedValue({ id: 13, stock: 0 }),
+      },
+      stockLog: { create: jest.fn() },
+    }
+    const repo = new ProductRepository({ $transaction: (fn: any) => fn(tx) } as unknown as PrismaService)
+    await repo.update(1, { skus: [{ id: 11, name: '保留', price: 10, stock: 1 }, { name: '新增', price: 20, stock: 0 }] })
+    expect(tx.productSku.updateMany).toHaveBeenLastCalledWith({
+      where: { productId: 1, deletedAt: null, id: { notIn: [11, 13] } },
+      data: { deletedAt: expect.any(Date), isEnabled: false },
+    })
+    tx.productSku.updateMany.mockClear()
+    await repo.update(1, { name: '仅改名称' })
+    expect(tx.productSku.updateMany).not.toHaveBeenCalled()
+  })
+})
+
+describe('商品单位校验', () => {
+  const createBody = {
+    categoryId: 1,
+    name: '龙头',
+    mainImage: ['/product.jpg'],
+    skus: [{ name: '默认规格', price: 10, stock: 1 }],
+  }
+
+  it.each([CreateProductDto, UpdateProductDto])('%p 接受单位和省略单位', async (metatype) => {
+    const body = metatype === CreateProductDto ? createBody : {}
+    await expect(pipe.transform({ ...body, unit: '套' }, { type: 'body', metatype }))
+      .resolves.toHaveProperty('unit', '套')
+    await expect(pipe.transform(body, { type: 'body', metatype })).resolves.toBeDefined()
+  })
+
+  it.each([null, '', '   ', 123, '件'.repeat(33)])('拒绝无效单位 %p', async (unit) => {
+    for (const metatype of [CreateProductDto, UpdateProductDto]) {
+      const body = metatype === CreateProductDto ? createBody : {}
+      await expect(pipe.transform({ ...body, unit }, { type: 'body', metatype }))
+        .rejects.toThrow()
+    }
+  })
+})
 
 const integration =
   process.env.RUN_PRODUCT_DB_TESTS === '1' ? describe : describe.skip
@@ -29,9 +84,7 @@ integration('本地数据库商品筛选（事务回滚）', () => {
         })
         const base = {
           categoryId: category.id,
-          price: '10.00',
-          mainImage: '',
-          stock: 3,
+          mainImage: ['/cover.jpg'],
         }
         await tx.product.createMany({
           data: [
@@ -50,9 +103,14 @@ integration('本地数据库商品筛选（事务回滚）', () => {
               sort: 2,
             },
             { ...base, name: '50%_', isPublished: false, sort: 3 },
-            { ...base, name: 'NoStock', isPublished: true, stock: 0, sort: 4 },
+            { ...base, name: 'NoStock', isPublished: true, sort: 4 },
           ],
         })
+        const products = await tx.product.findMany({ where: { categoryId: category.id } })
+        await tx.productSku.createMany({ data: products.map(product => ({
+          productId: product.id, name: '默认',
+          price: 10, stock: product.name === 'NoStock' ? 0 : 3,
+        })) })
         const find = (query: QueryProductDto) =>
           tx.product.findMany({
             where: productQueryWhere({ ...query, categoryId: category.id }),
@@ -149,7 +207,7 @@ describe('商品查询参数', () => {
     ).toEqual({
       categoryId: 12,
       isPublished: false,
-      stock: { gt: 0 },
+      skus: { some: { deletedAt: null, isEnabled: true, stock: { gt: 0 } } },
       OR: ['name', 'brand', 'model', 'description'].map((field) => ({
         [field]: { contains: 'AC' },
       })),

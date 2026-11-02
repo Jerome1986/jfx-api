@@ -241,14 +241,21 @@ export class AppointmentService {
     }
   }
 
-  // 根据用户 ID 确定员工身份，查询其负责的预约
+  // 校验当前员工身份，查询本人负责的预约
   async getAssignedAppointments(
+    user: UserJwtPayload,
     userId: number,
     pageNum: number,
     pageSize: number,
     type?: AppointmentTypeFilter,
     status?: AppointmentStatus | 'ALL',
   ) {
+    if (user.type !== 'user' || user.role !== 'EMPLOYEE') {
+      throw new ForbiddenException('仅员工可查询负责的预约')
+    }
+    if (userId !== user.userId) {
+      throw new ForbiddenException('仅可查询本人负责的预约')
+    }
     const employee = await this.appointmentRepo.findEmployeeByUserId(userId)
     if (!employee || employee.user.role !== 'EMPLOYEE') {
       throw new ForbiddenException('仅员工可查询负责的预约')

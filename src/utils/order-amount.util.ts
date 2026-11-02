@@ -1,7 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common'
 import { Prisma } from '../../generated/prisma/client'
 
-type OrderAmountItem = { productId: number; quantity: number }
+type OrderAmountItem = { skuId: number; quantity: number }
 type ProductPrice = { id: number; price: Prisma.Decimal }
 
 /** 根据数据库查询出的售价计算总金额；不访问数据库，全程保留Decimal精度。 */
@@ -13,8 +13,8 @@ export function calculateProductAmount(
 
   const productMap = new Map(products.map(product => [product.id, product]))
   const total = items.reduce((amount, item) => {
-    const product = productMap.get(item.productId)
-    if (!product) throw new NotFoundException(`商品${item.productId}不存在`)
+    const product = productMap.get(item.skuId)
+    if (!product) throw new NotFoundException(`商品规格${item.skuId}不存在`)
     if (!Number.isInteger(item.quantity) || item.quantity < 1) {
       throw new BadRequestException('购买数量必须是正整数')
     }

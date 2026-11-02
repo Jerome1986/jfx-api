@@ -91,7 +91,7 @@ describe('业绩仓储查询', () => {
   })
   it('客户确认时间与成交金额原子更新，并保留版本和状态条件', async () => {
     const update = jest.fn().mockResolvedValue({})
-    const repo = new RenovationProjectRepository({ renovationProject: { update } } as any)
+    const repo = new RenovationProjectRepository({ $transaction: (fn: any) => fn({ renovationProject: { update } }) } as any)
     const project = { quotedAmount: new Prisma.Decimal('1.23'), quoteVersion: 2, updatedAt: new Date() }
     await repo.confirmProject(3, 7, project)
     expect(update).toHaveBeenCalledWith(expect.objectContaining({

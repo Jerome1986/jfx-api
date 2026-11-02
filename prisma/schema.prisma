@@ -451,11 +451,9 @@ model RenewalPlan {
   /// 起步价
   startingPrice Decimal       @map("starting_price") @db.Decimal(10, 2)
   /// 封面图片
-  cover         String?
-  /// 图片列表
-  images        Json?
+  cover         Json
   /// 详情内容
-  detail        String?       @db.Text
+  detail        Json
   /// 分享标题
   shareTitle    String?       @map("share_title")
   /// 分享图片
@@ -624,7 +622,7 @@ model ProductCategory {
   @@map("product_category")
 }
 
-// 商品表：保存商品信息、简单规格、价格及当前库存
+// 商品表：保存商品公共信息，规格、售价和库存由 SKU 管理
 model Product {
   /// 主键 ID
   id                   Int      @id @default(autoincrement())
@@ -632,21 +630,15 @@ model Product {
   categoryId           Int      @map("category_id")
   /// 商品名称
   name                 String   @db.VarChar(255)
+  unit                 String   @default("件") @db.VarChar(32)
   /// 商品描述或卖点
   description          String?  @db.VarChar(500)
   /// 品牌，例如：九牧JOMOO
   brand                String?  @db.VarChar(100)
   /// 产品型号，例如：X32025-548/1B-Z
   model                String?  @db.VarChar(100)
-  /// 可选择的规格，例如：
-  /// ["L3092D拉丝", "L3092镀洛", "L3092H枪灰"]
-  specifications       Json?
-  /// 销售价
-  price                Decimal  @db.Decimal(10, 2)
-  /// 当前库存
-  stock                Int      @default(0)
-  /// 商品主图
-  mainImage            String   @map("main_image") @db.VarChar(500)
+  /// 商品主图数组，按轮播顺序排列，第一张作为封面
+  mainImage            Json     @map("main_image")
   /// 商品详情图片，例如：
   /// ["图片地址1", "图片地址2"]
   detailImages         Json?    @map("detail_images")
@@ -663,6 +655,7 @@ model Product {
 
   /// 分类
   category   ProductCategory    @relation(fields: [categoryId], references: [id])
+  skus       ProductSku[]
   /// 关联购物车明细
   cartItems  CartItem[]
   /// 关联订单明细列表
@@ -679,8 +672,32 @@ model Product {
   @@map("product")
 }
 
+model ProductSku {
+  id          Int      @id @default(autoincrement())
+  productId   Int      @map("product_id")
+  name        String   @db.VarChar(255)
+  price       Decimal  @db.Decimal(10, 2)
+  stock       Int      @default(0)
+  isEnabled   Boolean  @default(true) @map("is_enabled")
+  deletedAt   DateTime? @map("deleted_at")
+  sort        Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  cartItems CartItem[]
+  stockLogs StockLog[]
+  orderItems ProductOrderItem[]
+
+  @@index([productId, name])
+  @@index([productId, isEnabled, sort])
+  @@map("product_sku")
+}
+
 // 购物车明细表：保存用户加入购物车的商品和数量
 model CartItem {
+  skuId     Int      @map("sku_id")
+  sku       ProductSku @relation(fields: [skuId], references: [id], onDelete: Restrict)
   /// 主键 ID
   id        Int      @id @default(autoincrement())
   /// 关联用户 ID
@@ -701,12 +718,14 @@ model CartItem {
   /// 关联商品
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, productId])
+  @@unique([userId, skuId])
   @@map("cart_item")
 }
 
 // 库存流水表：记录入库、销售、取消释放及人工调整
 model StockLog {
+  skuId     Int      @map("sku_id")
+  sku       ProductSku @relation(fields: [skuId], references: [id], onDelete: Restrict)
   /// 主键 ID
   id        Int             @id @default(autoincrement())
   /// 关联商品 ID
@@ -730,6 +749,7 @@ model StockLog {
   product Product @relation(fields: [productId], references: [id])
 
   @@index([productId, createdAt])
+  @@index([skuId, createdAt])
   @@map("stock_log")
 }
 
@@ -878,6 +898,10 @@ model RenovationProject {
   /// 合同成交金额
   contractAmount       Decimal?                @map("contract_amount") @db.Decimal(10, 2)
   /// 客户或后台首次确认成交的时间
+  couponDiscount       Decimal                 @default(0) @map("coupon_discount") @db.Decimal(10, 2)
+  couponSnapshot       Json?                   @map("coupon_snapshot")
+  couponReturnedAt     DateTime?               @map("coupon_returned_at")
+  userCoupon           UserCoupon?
   quoteConfirmedAt     DateTime?               @map("quote_confirmed_at")
   /// 装修项目状态
   status               RenovationProjectStatus @default(PENDING_CONFIRM)
@@ -1067,6 +1091,8 @@ model ProductOrder {
 
 // 商品订单明细表：保存下单时的商品、规格和价格快照
 model ProductOrderItem {
+  skuId           Int     @map("sku_id")
+  sku             ProductSku @relation(fields: [skuId], references: [id], onDelete: Restrict)
   /// 主键 ID
   id              Int     @id @default(autoincrement())
   /// 关联商品订单 ID
@@ -1096,6 +1122,7 @@ model ProductOrderItem {
   product Product?     @relation(fields: [productId], references: [id])
 
   @@index([orderId])
+  @@index([skuId])
   @@index([productId])
   @@map("product_order_item")
 }
@@ -1265,6 +1292,7 @@ model UserCoupon {
   couponId   Int              @map("coupon_id")
   /// 关联商品订单 ID
   orderId    Int?             @unique @map("order_id")
+  projectId  Int?             @unique @map("project_id")
   /// 用户优惠券状态
   status     UserCouponStatus @default(AVAILABLE)
   /// 领取时间
@@ -1280,6 +1308,7 @@ model UserCoupon {
   coupon Coupon        @relation(fields: [couponId], references: [id])
   /// 关联商品订单
   order  ProductOrder? @relation(fields: [orderId], references: [id])
+  project RenovationProject? @relation(fields: [projectId], references: [id])
 
   @@index([userId, status, expiresAt])
   @@index([couponId])

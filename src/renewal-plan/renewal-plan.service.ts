@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common'
 import { CreateRenewalPlanDto } from './dto/create-renewal-plan.dto'
 import { RenewalPlanRepository } from './renewal-plan.repository'
 import { UpdateRenewalPlanDto } from './dto/update-renewal-plan.dto'
+import { productCoverImage } from '../utils/product-image.util'
 
 @Injectable()
 export class RenewalPlanService {
@@ -36,7 +37,7 @@ export class RenewalPlanService {
           ...item,
           name: item.product.name,
           description: item.product.description,
-          image: item.product.mainImage,
+          image: productCoverImage(item.product.mainImage),
         }
       }),
     }

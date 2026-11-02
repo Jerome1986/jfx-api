@@ -8,6 +8,5 @@ export interface PreparedOrder {
   openid: string
   userCouponId?: number
   pointsUsed: number
-  /** 已合并同一商品的数量，并按商品ID升序排列。 */
-  stockItems: { productId: number; quantity: number }[]
+  stockItems: { skuId: number; quantity: number }[]
 }

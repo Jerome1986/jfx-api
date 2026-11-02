@@ -76,12 +76,12 @@ describe('装修项目确认与详情', () => {
 
   it('数据库写入同时约束归属、状态及报价快照，原子保存成交金额', async () => {
     const update = jest.fn().mockResolvedValue({})
-    const repository = new RenovationProjectRepository({ renovationProject: { update } } as any)
+    const repository = new RenovationProjectRepository({ $transaction: (fn: any) => fn({ renovationProject: { update } }) } as any)
     await repository.confirmProject(1, 7, project)
     expect(update).toHaveBeenCalledWith({
         omit: { remark: true, progress: true },
       where: { id: 1, userId: 7, status: 'PENDING_CONFIRM', quoteVersion: 1, updatedAt: project.updatedAt, quotedAmount: project.quotedAmount },
-      data: { status: 'IN_SERVICE', contractAmount: project.quotedAmount, quoteConfirmedAt: expect.any(Date), progress: '客户已确认报价，开始服务', progresses: { create: { status: 'IN_SERVICE', content: '客户已确认报价，开始服务', createdBy: 'user:7' } } },
+      data: { status: 'IN_SERVICE', couponDiscount: new Prisma.Decimal(0), couponSnapshot: Prisma.DbNull, couponReturnedAt: null, contractAmount: project.quotedAmount, quoteConfirmedAt: expect.any(Date), progress: '客户已确认报价，开始服务', progresses: { create: { status: 'IN_SERVICE', content: '客户已确认报价，开始服务', createdBy: 'user:7' } } },
     })
   })
 })

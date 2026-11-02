@@ -11,6 +11,8 @@ import {
   IsOptional,
   IsString,
   Min,
+  Matches,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator'
 
@@ -73,18 +75,17 @@ export class CreateRenewalPlanDto {
   @Min(0, { message: '起步价不能小于0' })
   startingPrice: number
 
-  @IsOptional()
-  @IsString({ message: '封面图片必须是字符串' })
-  cover?: string
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsArray({ message: '封面图片必须是数组' })
+  @IsString({ each: true, message: '每张封面图片必须是字符串' })
+  @Matches(/\S/, { each: true, message: '封面图片地址不能为空' })
+  cover?: string[]
 
-  @IsOptional()
-  @IsArray({ message: '图片列表必须是数组' })
-  @IsString({ each: true, message: '每张图片必须是字符串' })
-  images?: string[]
-
-  @IsOptional()
-  @IsString({ message: '详情内容必须是字符串' })
-  detail?: string
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsArray({ message: '方案详情必须是图片数组' })
+  @IsString({ each: true, message: '每张方案详情图必须是字符串' })
+  @Matches(/\S/, { each: true, message: '方案详情图片地址不能为空' })
+  detail?: string[]
 
   @IsOptional()
   @IsString({ message: '分享标题必须是字符串' })

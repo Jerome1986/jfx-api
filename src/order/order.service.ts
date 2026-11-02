@@ -236,10 +236,10 @@ export class OrderService {
         // 3. 合并同一商品的数量，跳过已删除商品，按商品编号顺序返还库存并记录流水。
         const quantities = new Map<number, number>()
         for (const item of current.items) {
-          if (item.productId !== null) quantities.set(item.productId, (quantities.get(item.productId) ?? 0) + item.quantity)
+          quantities.set(item.skuId, (quantities.get(item.skuId) ?? 0) + item.quantity)
         }
-        for (const [productId, quantity] of [...quantities].sort(([a], [b]) => a - b)) {
-          await this.orderRepo.restoreStock(productId, quantity, current.orderNo, operator, tx)
+        for (const [skuId, quantity] of [...quantities].sort(([a], [b]) => a - b)) {
+          await this.orderRepo.restoreStock(skuId, quantity, current.orderNo, operator, tx)
         }
 
         // 4. 返还订单抵扣的积分并记录流水，未使用积分则跳过。

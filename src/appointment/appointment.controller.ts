@@ -78,12 +78,15 @@ export class AppointmentController {
     )
   }
 
-  // 根据用户 ID 查询对应员工负责的预约列表
+  // 查询当前员工本人负责的预约列表
   @Get('assigned')
+  @UseGuards(UserJwtGuard)
   getAssignedAppointments(
+    @CurrentUser() user: UserJwtPayload,
     @Query() query: QueryAssignedAppointmentDto,
   ) {
     return this.appointmentService.getAssignedAppointments(
+      user,
       query.userId,
       query.pageNum,
       query.pageSize,

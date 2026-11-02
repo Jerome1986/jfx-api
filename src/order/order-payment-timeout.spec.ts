@@ -10,7 +10,7 @@ jest.mock('../../generated/prisma/client', () => ({ Prisma: { TransactionIsolati
 
 describe('待付款 30 分钟超时关闭', () => {
   const now = new Date('2026-09-28T04:00:00Z')
-  const makeOrder = () => ({ id: 1, userId: 7, orderNo: 'order1', createdAt: new Date(now.getTime() - PAYMENT_TIMEOUT_MS), status: 'PENDING_PAYMENT', paymentStatus: 'UNPAID', paymentNo: null, paidAt: null, pointsUsed: 10, items: [{ productId: 2, quantity: 3 }], user: { status: true, openid: 'openid' } })
+  const makeOrder = () => ({ id: 1, userId: 7, orderNo: 'order1', createdAt: new Date(now.getTime() - PAYMENT_TIMEOUT_MS), status: 'PENDING_PAYMENT', paymentStatus: 'UNPAID', paymentNo: null, paidAt: null, pointsUsed: 10, items: [{ productId: 2, skuId: 2, quantity: 3 }], user: { status: true, openid: 'openid' } })
   let order: ReturnType<typeof makeOrder>, repo: any, payment: any, service: OrderService
   beforeEach(() => {
     jest.useFakeTimers().setSystemTime(now)

@@ -13,7 +13,7 @@ jest.mock('../../generated/prisma/client', () => ({ Prisma: {
 } }))
 
 const dto = { contactName: 'Test', contactPhone: '123', serviceAddress: 'Address',
-  items: [{ productId: 1, quantity: 1 }], appointmentDate: '2026-09-25', timeSlot: '09:00-12:00' }
+  items: [{ productId: 1, skuId: 1, quantity: 1 }], appointmentDate: '2026-09-25', timeSlot: '09:00-12:00' }
 const pipe = new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true })
 
 describe('Installation booking contract', () => {
@@ -42,7 +42,7 @@ describe('Installation booking contract', () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-09-20T00:00:00Z'))
     try {
       const tx = { user: { findUnique: jest.fn().mockResolvedValue({ id: 7, status: true, points: 0, openid: 'wx' }) },
-        product: { findMany: jest.fn().mockResolvedValue([{ id: 1, name: 'Product', price: new Prisma.Decimal(10), isPublished: true, stock: 5, specifications: [] }]) } }
+        productSku: { findMany: jest.fn().mockResolvedValue([{ id: 1, productId: 1, name: 'SKU', price: new Prisma.Decimal(10), isEnabled: true, stock: 5, product: { name: 'Product', mainImage: ['cover.jpg', 'banner.jpg'], isPublished: true } }]) } }
       const prepared = await new OrderPreparationService({} as never).prepare(dto, 7, tx as never)
       expect(prepared.data).toMatchObject({ appointmentDate: new Date('2026-09-25T00:00:00Z'), timeSlot: dto.timeSlot })
       expect(prepared.data.remark).toBeUndefined()
@@ -52,7 +52,7 @@ describe('Installation booking contract', () => {
   it('returns orderId alongside existing payment parameters', async () => {
     const pay = { timeStamp: '1', nonceStr: 'nonce', packageValue: 'prepay_id=test', signType: 'RSA', paySign: 'signature' }
     const service = new OrderService(
-      { createWithResources: jest.fn().mockResolvedValue({ id: 15, orderNo: 'order', payableAmount: new Prisma.Decimal(10) }) } as never,
+      { createWithResources: jest.fn().mockResolvedValue({ id: 15, orderNo: 'order', createdAt: new Date(), payableAmount: new Prisma.Decimal(10) }) } as never,
       { prepare: jest.fn().mockResolvedValue({ openid: 'wx' }) } as never,
       { wxPay: jest.fn().mockResolvedValue(pay) } as never,
       { $transaction: jest.fn(callback => callback({})) } as never,

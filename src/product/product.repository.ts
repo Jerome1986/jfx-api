@@ -1,10 +1,13 @@
 // 文件说明：产品数据仓储，封装数据库访问操作。
-import { Injectable } from '@nestjs/common'
+import { BadRequestException, ConflictException, Injectable } from '@nestjs/common'
 import { PrismaService } from 'src/prisma/prisma.service'
 import { CreateProductDto } from './dto/create-product.dto'
 import { UpdateProductDto } from './dto/update-product.dto'
 import { QueryProductDto } from './dto/query-product.dto'
 import { Prisma } from '../../generated/prisma/client'
+import { ProductSkuDto } from './dto/product-sku.dto'
+
+const productInclude = { category: true, skus: { where: { deletedAt: null }, orderBy: [{ sort: 'asc' }, { id: 'asc' }] } } satisfies Prisma.ProductInclude
 
 // 构建商品列表查询条件
 export function productQueryWhere(
@@ -19,7 +22,7 @@ export function productQueryWhere(
       ? { isPublished: query.isPublished }
       : {}),
     ...(query.inStock !== undefined
-      ? { stock: query.inStock ? { gt: 0 } : { lte: 0 } }
+      ? { skus: { [query.inStock ? 'some' : 'none']: { deletedAt: null, isEnabled: true, stock: { gt: 0 } } } }
       : {}),
     ...(contains
       ? {
@@ -40,10 +43,14 @@ export class ProductRepository {
   constructor(private prisma: PrismaService) { }
 
   // 新增商品
-  create(createProductDto: CreateProductDto) {
-    return this.prisma.product.create({
-      data: createProductDto,
-      include: { category: true },
+  async create(createProductDto: CreateProductDto) {
+    const { skus, ...data } = createProductDto
+    this.validateSkus(skus)
+    if (skus.some(sku => sku.id !== undefined)) throw new BadRequestException('新增商品不能指定SKU ID')
+    return this.prisma.$transaction(async tx => {
+      const product = await tx.product.create({ data })
+      for (const sku of skus) await this.saveSku(tx, product.id, sku)
+      return tx.product.findUniqueOrThrow({ where: { id: product.id }, include: productInclude })
     })
   }
 
@@ -51,7 +58,7 @@ export class ProductRepository {
   findAll(query: QueryProductDto = {}) {
     return this.prisma.product.findMany({
       where: productQueryWhere(query),
-      include: { category: true },
+      include: productInclude,
       orderBy: [{ sort: 'asc' }, { createdAt: 'desc' }],
     })
   }
@@ -61,6 +68,7 @@ export class ProductRepository {
     return await Promise.all([
       this.prisma.product.findMany({
         where: { name: { contains: productName } },
+        include: productInclude,
         orderBy: { createdAt: 'desc' },
         skip: (pageNum - 1) * pageSize,
         take: pageSize
@@ -76,7 +84,7 @@ export class ProductRepository {
       [
         this.prisma.product.findMany({
           where,
-          include: { category: true },
+          include: productInclude,
           orderBy: [{ sort: 'asc' }, { createdAt: 'desc' }, { id: 'desc' }],
           skip: (query.pageNum - 1) * query.pageSize,
           take: query.pageSize,
@@ -91,21 +99,67 @@ export class ProductRepository {
   findOne(id: number) {
     return this.prisma.product.findUnique({
       where: { id },
-      include: { category: true },
+      include: productInclude,
     })
   }
 
   // 更新商品
-  update(id: number, updateProductDto: UpdateProductDto) {
-    return this.prisma.product.update({
-      where: { id },
-      data: updateProductDto,
-      include: { category: true },
+  async update(id: number, updateProductDto: UpdateProductDto) {
+    const { skus, ...data } = updateProductDto
+    if (skus !== undefined) this.validateSkus(skus)
+    return this.prisma.$transaction(async tx => {
+      await tx.product.update({ where: { id }, data })
+      const retainedIds: number[] = []
+      for (const sku of skus ?? []) retainedIds.push(await this.saveSku(tx, id, sku))
+      if (skus !== undefined) {
+        // 包含本次新增项，只删除提交列表中缺失的规格。
+        await tx.productSku.updateMany({
+          where: { productId: id, deletedAt: null, id: { notIn: retainedIds } },
+          data: { deletedAt: new Date(), isEnabled: false },
+        })
+      }
+      return tx.product.findUniqueOrThrow({ where: { id }, include: productInclude })
     })
   }
 
   // 删除商品
-  remove(id: number) {
-    return this.prisma.product.delete({ where: { id } })
+  async remove(id: number) {
+    try {
+      return await this.prisma.$transaction(async tx => {
+        const used = await tx.stockLog.count({ where: { productId: id, type: { in: ['SALE', 'CANCEL_RELEASE'] } } })
+        if (used) throw new BadRequestException('商品已有交易记录，请下架商品')
+        await tx.stockLog.deleteMany({ where: { productId: id } })
+        await tx.productSku.deleteMany({ where: { productId: id } })
+        return tx.product.delete({ where: { id } })
+      })
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
+        throw new BadRequestException('商品已被引用，请下架商品或解除引用')
+      }
+      throw error
+    }
+  }
+
+  private validateSkus(skus: ProductSkuDto[]) {
+    if (!Array.isArray(skus) || !skus.length) throw new BadRequestException('至少提供一个SKU')
+    if (new Set(skus.map(sku => sku.name)).size !== skus.length) throw new BadRequestException('SKU名称不能重复')
+    const ids = skus.flatMap(sku => sku.id === undefined ? [] : [sku.id])
+    if (new Set(ids).size !== ids.length) throw new BadRequestException('SKU ID不能重复')
+  }
+
+  private async saveSku(tx: Prisma.TransactionClient, productId: number, input: ProductSkuDto) {
+    const { id, ...data } = input
+    const previous = id === undefined ? null : await tx.productSku.findFirst({ where: { id, productId, deletedAt: null } })
+    if (id !== undefined && !previous) throw new BadRequestException('SKU不存在或不属于该商品')
+    if (previous) {
+      const changed = await tx.productSku.updateMany({ where: { id, productId, stock: previous.stock }, data })
+      if (changed.count !== 1) throw new ConflictException('库存已变化，请刷新后重试')
+    }
+    const sku = previous ? { id: previous.id, stock: data.stock } : await tx.productSku.create({ data: { ...data, productId } })
+    const change = sku.stock - (previous?.stock ?? 0)
+    if (change !== 0) await tx.stockLog.create({
+      data: { productId, skuId: sku.id, type: previous ? 'MANUAL' : 'INBOUND', change, stock: sku.stock },
+    })
+    return sku.id
   }
 }

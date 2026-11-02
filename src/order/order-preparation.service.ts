@@ -6,6 +6,7 @@ import { generateRandomCode } from 'src/utils/random.util';
 import { UserCouponRepository } from 'src/user-coupon/user-coupon.repository';
 import { parseInstallationBooking } from './installation-booking';
 import type { PreparedOrder } from './types/prepared-order';
+import { productCoverImage } from '../utils/product-image.util';
 
 /** 负责订单校验、价格快照和优惠计算；数据库读取使用调用方的事务。 */
 @Injectable()
@@ -33,37 +34,28 @@ export class OrderPreparationService {
 
     // 3. 去重后批量查询商品，使用数据库售价计算总额，不接受前端报价。
     if (!items.length) throw new BadRequestException('至少选择一件商品')
-    const products = await tx.product.findMany({
-      where: { id: { in: [...new Set(items.map(item => item.productId))] } },
-      select: {
-        id: true, name: true, price: true, mainImage: true,
-        isPublished: true, stock: true, specifications: true,
-      },
+    const products = await tx.productSku.findMany({
+      where: { deletedAt: null, id: { in: [...new Set(items.map(item => item.skuId))] } },
+      include: { product: true },
     })
     const productAmount = calculateProductAmount(items, products)
     // 4. 校验商品可售、库存及规格，并保存下单时的商品和价格快照。
     const productMap = new Map(products.map(product => [product.id, product]))
     const quantities = new Map<number, number>()
     const orderItems = items.map(item => {
-      const product = productMap.get(item.productId)!
-      if (!product.isPublished) throw new BadRequestException(`商品${product.name}已下架`)
-      // 同一商品可能分成多行（不同规格），库存需按所有行的总数量检查。
-      const quantity = (quantities.get(item.productId) ?? 0) + item.quantity
-      quantities.set(item.productId, quantity)
+      const product = productMap.get(item.skuId)!
+      if (product.productId !== item.productId) throw new BadRequestException('规格不属于当前商品')
+      if (!product.isEnabled || !product.product.isPublished) throw new BadRequestException(`商品${product.name}已下架`)
+      const quantity = (quantities.get(item.skuId) ?? 0) + item.quantity
+      quantities.set(item.skuId, quantity)
       if (quantity > product.stock) throw new BadRequestException(`商品${product.name}库存不足`)
-      const specifications = Array.isArray(product.specifications) ? product.specifications : []
-      if (specifications.length && !item.skuDescription) {
-        throw new BadRequestException(`请选择商品${product.name}的规格`)
-      }
-      if (item.skuDescription && !specifications.includes(item.skuDescription)) {
-        throw new BadRequestException(`商品${product.name}的规格无效`)
-      }
       // 商品名称、图片和价格后续可能修改，订单明细保存本次查询到的值。
       return {
-        product: { connect: { id: product.id } },
-        productName: product.name,
-        skuDescription: item.skuDescription,
-        image: product.mainImage,
+        product: { connect: { id: product.productId } },
+        sku: { connect: { id: product.id } },
+        productName: product.product.name,
+        skuDescription: product.name,
+        image: productCoverImage(product.product.mainImage),
         unitPrice: product.price,
         quantity: item.quantity,
         subtotal: new Prisma.Decimal(product.price).mul(item.quantity),
@@ -118,7 +110,7 @@ export class OrderPreparationService {
       pointsUsed,
       stockItems: [...quantities]
         .sort(([a], [b]) => a - b)
-        .map(([productId, quantity]) => ({ productId, quantity })),
+        .map(([skuId, quantity]) => ({ skuId, quantity })),
     }
   }
 
@@ -138,7 +130,7 @@ export class OrderPreparationService {
     const userCoupon = await this.userCouponRepo.findOne(userCouponId, tx)
     if (!userCoupon) throw new NotFoundException('用户优惠券不存在')
     if (userCoupon.userId !== userId) throw new ForbiddenException('不能使用其他用户的优惠券')
-    if (userCoupon.status !== 'AVAILABLE' || userCoupon.orderId !== null) {
+    if (userCoupon.status !== 'AVAILABLE' || userCoupon.orderId !== null || userCoupon.projectId !== null) {
       throw new BadRequestException('优惠券已使用或不可用')
     }
 

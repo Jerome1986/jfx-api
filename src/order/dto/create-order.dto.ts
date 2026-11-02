@@ -6,6 +6,10 @@ import {
 
 /** 当前商品均包安装，安装标记和费用由服务端确定，无需客户端传入。 */
 export class CreateOrderItemDto {
+  @IsInt()
+  @Min(1)
+  @Max(2147483647)
+  skuId: number
   @IsInt({ message: '商品ID必须是整数' })
   @Min(1, { message: '商品ID必须大于0' })
   @Max(2147483647, { message: '商品ID不能大于2147483647' })
@@ -16,13 +20,6 @@ export class CreateOrderItemDto {
   @Max(2147483647, { message: '购买数量不能大于2147483647' })
   quantity: number
 
-  /** 所选规格，由服务层校验是否属于该商品。 */
-  @IsOptional()
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
-  @IsString({ message: '商品规格必须是字符串' })
-  @IsNotEmpty({ message: '商品规格不能为空' })
-  @MaxLength(191, { message: '商品规格不能超过191个字符' })
-  skuDescription?: string
 }
 
 /** 用户ID取自登录身份；订单编号、金额和支付状态由服务端确定。 */

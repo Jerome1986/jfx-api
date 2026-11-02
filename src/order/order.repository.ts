@@ -157,11 +157,11 @@ export class OrderRepository {
   }
 
   // 返还商品库存并记录库存流水。
-  async restoreStock(productId: number, quantity: number, orderNo: string, operator: string, tx: Prisma.TransactionClient) {
-    const product = await tx.product.update({ where: { id: productId }, data: { stock: { increment: quantity } } })
+  async restoreStock(skuId: number, quantity: number, orderNo: string, operator: string, tx: Prisma.TransactionClient) {
+    const product = await tx.productSku.update({ where: { id: skuId }, data: { stock: { increment: quantity } } })
     return tx.stockLog.create({
       data: {
-        productId, type: 'CANCEL_RELEASE', change: quantity, stock: product.stock,
+        productId: product.productId, skuId, type: 'CANCEL_RELEASE', change: quantity, stock: product.stock,
         relatedNo: orderNo, reason: '取消待支付订单返还库存', operator,
       }
     })
@@ -189,16 +189,16 @@ export class OrderRepository {
   ) {
     const { data, userId, userCouponId, pointsUsed, stockItems } = prepared
     // 1. 使用准备阶段合并并排序的数量扣库存，避免重复处理商品明细。
-    for (const { productId, quantity } of stockItems) {
-      const changed = await tx.product.updateMany({
-        where: { id: productId, isPublished: true, stock: { gte: quantity } },
+    for (const { skuId, quantity } of stockItems) {
+      const changed = await tx.productSku.updateMany({
+        where: { id: skuId, deletedAt: null, isEnabled: true, product: { isPublished: true }, stock: { gte: quantity } },
         data: { stock: { decrement: quantity } },
       })
       if (changed.count !== 1) throw new ConflictException('商品库存不足或已下架，请刷新后重试')
-      const product = await tx.product.findUniqueOrThrow({ where: { id: productId }, select: { stock: true } })
+      const product = await tx.productSku.findUniqueOrThrow({ where: { id: skuId }, select: { stock: true, productId: true } })
       await tx.stockLog.create({
         data: {
-          productId, type: 'SALE', change: -quantity, stock: product.stock,
+          productId: product.productId, skuId, type: 'SALE', change: -quantity, stock: product.stock,
           relatedNo: data.orderNo, reason: '待支付订单占用库存', operator: String(userId),
         },
       })
@@ -223,7 +223,7 @@ export class OrderRepository {
     if (userCouponId !== undefined) {
       const changed = await tx.userCoupon.updateMany({
         where: {
-          id: userCouponId, userId, status: 'AVAILABLE', orderId: null,
+          id: userCouponId, userId, status: 'AVAILABLE', orderId: null, projectId: null,
           expiresAt: { gt: new Date() },
         },
         data: { orderId: order.id },
