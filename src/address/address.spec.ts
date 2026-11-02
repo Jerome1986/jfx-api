@@ -18,23 +18,24 @@ describe('地址接口用户隔离', () => {
     code: 'P2025', clientVersion: '7.9.1',
   })
   const prisma = {
+    admin: { findUnique: jest.fn(async ({ where }) => where.id === 1 ? { status: true } : where.id === 3 ? { status: false } : null) },
     user: { findUnique: jest.fn(async ({ where }) => ({ status: where.id !== 3 })) },
     address: {
-      findMany: jest.fn(async ({ where }) => addresses.filter(row => row.userId === where.userId)),
-      findUnique: jest.fn(async ({ where }) => addresses.find(row => row.id === where.id && row.userId === where.userId) ?? null),
+      findMany: jest.fn(async ({ where }) => addresses.filter(row => (where.userId === undefined || row.userId === where.userId))),
+      findUnique: jest.fn(async ({ where }) => addresses.find(row => row.id === where.id && (where.userId === undefined || row.userId === where.userId)) ?? null),
       create: jest.fn(async ({ data }) => {
         const row = { ...data, id: 30 }
         addresses.push(row)
         return row
       }),
       update: jest.fn(async ({ where, data }) => {
-        const row = addresses.find(row => row.id === where.id && row.userId === where.userId)
+        const row = addresses.find(row => row.id === where.id && (where.userId === undefined || row.userId === where.userId))
         if (!row) throw missing()
         Object.assign(row, data)
         return row
       }),
       delete: jest.fn(async ({ where }) => {
-        const index = addresses.findIndex(row => row.id === where.id && row.userId === where.userId)
+        const index = addresses.findIndex(row => row.id === where.id && (where.userId === undefined || row.userId === where.userId))
         if (index < 0) throw missing()
         return addresses.splice(index, 1)[0]
       }),
@@ -75,8 +76,9 @@ describe('地址接口用户隔离', () => {
     await call(method, path, 'invalid-token', body).expect(401)
     await call(method, path, jwt.sign({ userId: 1, type: 'user', role: 'CUSTOMER' }, { expiresIn: -1 }), body).expect(401)
   })
-  it.each(routes)('%s %s 拒绝管理员身份和禁用账号', async (method, path) => {
-    await call(method, path, token(1, 'admin', 'SUPER_ADMIN'), body).expect(403)
+  it.each(routes)('%s %s 拒绝禁用或不存在的管理员和禁用用户', async (method, path) => {
+    await call(method, path, token(3, 'admin', 'SUPER_ADMIN'), body).expect(403)
+    await call(method, path, token(999, 'admin', 'SUPER_ADMIN'), body).expect(403)
     await call(method, path, token(3), body).expect(403)
     expect(prisma.address.findMany).not.toHaveBeenCalled()
     expect(prisma.address.findUnique).not.toHaveBeenCalled()
@@ -114,4 +116,35 @@ describe('地址接口用户隔离', () => {
     await call('delete', '/10', token()).expect(200)
     expect(addresses.map(row => row.id)).toEqual([20])
   })
+  it.each(['SUPER_ADMIN', 'CUSTOMER_SERVICE', 'CONTENT_OPERATOR'])('有效后台管理员 %s 可管理所有用户地址', async role => {
+    const admin = token(1, 'admin', role)
+    const list = await call('get', '', admin).expect(200)
+    expect(list.body.map(row => row.id)).toEqual([10, 20])
+    await call('get', '/20', admin).expect(200)
+    const updated = await call('patch', '/20', admin, { address: '后台修改' }).expect(200)
+    expect(updated.body).toMatchObject({ userId: 2, address: '后台修改' })
+    const created = await call('post', '', admin, { ...body, userId: 2 }).expect(201)
+    expect(created.body.userId).toBe(2)
+    await call('delete', '/20', admin).expect(200)
+    expect(prisma.admin.findUnique).toHaveBeenCalledWith({ where: { id: 1 }, select: { status: true } })
+  })
+  it('管理员新增必须指定归属，更新不得转移归属', async () => {
+    const admin = token(1, 'admin', 'SUPER_ADMIN')
+    await call('post', '', admin, body).expect(400)
+    await call('patch', '/20', admin, { userId: 1 }).expect(400)
+    expect(addresses[1].userId).toBe(2)
+  })
+  it('用户 Token 即使携带管理员角色也不能获取后台权限', async () => {
+    await call('get', '', token(1, 'user', 'SUPER_ADMIN')).expect(403)
+    expect(prisma.address.findMany).not.toHaveBeenCalled()
+  })
+  it('员工用户仍然只能管理本人地址', async () => {
+    const employee = token(1, 'user', 'EMPLOYEE')
+    const list = await call('get', '', employee).expect(200)
+    expect(list.body.map(row => row.id)).toEqual([10])
+    await call('get', '/20', employee).expect(404)
+    await call('patch', '/20', employee, { address: '越权' }).expect(404)
+    await call('delete', '/20', employee).expect(404)
+  })
 })
+

@@ -15,33 +15,38 @@ export class AddressRepository {
   }
 
   // 查询地址记录列表
-  findAll(userId: number) {
+  findAll(userId?: number) {
     return this.prisma.address.findMany({
-      where: { userId },
+      where: userId === undefined ? {} : { userId },
       orderBy: { createdAt: 'desc' },
     })
   }
 
   // 根据 ID 查询地址记录
-  findOne(id: number, userId: number) {
-    return this.prisma.address.findUnique({ where: { id, userId } })
+  findOne(id: number, userId?: number) {
+    return this.prisma.address.findUnique({ where: { id, ...(userId === undefined ? {} : { userId }) } })
   }
 
   // 根据 ID 更新地址记录
-  update(id: number, userId: number, data: UpdateAddressDto) {
+  update(id: number, userId: number | undefined, data: UpdateAddressDto) {
     return this.prisma.address.update({
-      where: { id, userId },
+      where: { id, ...(userId === undefined ? {} : { userId }) },
       data,
     })
   }
 
   // 根据 ID 删除地址记录
-  remove(id: number, userId: number) {
-    return this.prisma.address.delete({ where: { id, userId } })
+  remove(id: number, userId?: number) {
+    return this.prisma.address.delete({ where: { id, ...(userId === undefined ? {} : { userId }) } })
   }
 
   // 查询当前用户账号状态，避免后台账号与用户 ID 重合时越权。
+  findAdmin(id: number) {
+    return this.prisma.admin.findUnique({ where: { id }, select: { status: true } })
+  }
+
   findUser(id: number) {
     return this.prisma.user.findUnique({ where: { id }, select: { status: true } })
   }
 }
+
