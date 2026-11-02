@@ -12,6 +12,7 @@ describe('FavoriteService', () => {
 
   beforeEach(() => {
     repository = {
+      findUser: jest.fn().mockResolvedValue({ status: true }),
       findByUserAndCase: jest.fn(),
       addFavorite: jest.fn(),
       removeFavorite: jest.fn(),
@@ -32,7 +33,7 @@ describe('FavoriteService', () => {
     ]
     repository.getUserFavorites.mockResolvedValue(favorites as never)
 
-    await expect(service.getUserFavorites(8)).resolves.toEqual(favorites)
+    await expect(service.getUserFavorites(8, { userId: 8, type: 'user', role: 'CUSTOMER' })).resolves.toEqual(favorites)
     // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(repository.getUserFavorites).toHaveBeenCalledWith(8)
   })

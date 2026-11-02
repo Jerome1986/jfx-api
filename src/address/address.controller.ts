@@ -8,32 +8,37 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  UseGuards,
 } from '@nestjs/common';
 import { AddressService } from './address.service';
 import { CreateAddressDto } from './dto/create-address.dto';
 import { UpdateAddressDto } from './dto/update-address.dto';
+import { UserJwtGuard } from '../common/auth/guards/user-jwt.guard';
+import { CurrentUser } from '../common/auth/decorators/current-user.decorator';
+import type { UserJwtPayload } from '../common/auth/interfaces/user-jwt-payload.interface';
 
 @Controller('address')
+@UseGuards(UserJwtGuard)
 export class AddressController {
   // 注入 AddressService，将接口请求交给业务服务处理。
   constructor(private readonly addressService: AddressService) {}
 
   // 新增地址
   @Post()
-  create(@Body() createAddressDto: CreateAddressDto) {
-    return this.addressService.create(createAddressDto);
+  create(@Body() createAddressDto: CreateAddressDto, @CurrentUser() user: UserJwtPayload) {
+    return this.addressService.create(createAddressDto, user);
   }
 
   // 获取地址列表
   @Get()
-  findAll() {
-    return this.addressService.findAll();
+  findAll(@CurrentUser() user: UserJwtPayload) {
+    return this.addressService.findAll(user);
   }
 
   // 获取地址详情
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.addressService.findOne(id);
+  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: UserJwtPayload) {
+    return this.addressService.findOne(id, user);
   }
 
   // 更新地址
@@ -41,13 +46,14 @@ export class AddressController {
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateAddressDto: UpdateAddressDto,
+    @CurrentUser() user: UserJwtPayload,
   ) {
-    return this.addressService.update(id, updateAddressDto);
+    return this.addressService.update(id, updateAddressDto, user);
   }
 
   // 删除地址
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.addressService.remove(id);
+  remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: UserJwtPayload) {
+    return this.addressService.remove(id, user);
   }
 }

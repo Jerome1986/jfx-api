@@ -10,32 +10,38 @@ export class AddressRepository {
   constructor(private prisma: PrismaService) {}
 
   // 新增地址记录
-  create(data: CreateAddressDto) {
+  create(data: CreateAddressDto & { userId: number }) {
     return this.prisma.address.create({ data })
   }
 
   // 查询地址记录列表
-  findAll() {
+  findAll(userId: number) {
     return this.prisma.address.findMany({
+      where: { userId },
       orderBy: { createdAt: 'desc' },
     })
   }
 
   // 根据 ID 查询地址记录
-  findOne(id: number) {
-    return this.prisma.address.findUnique({ where: { id } })
+  findOne(id: number, userId: number) {
+    return this.prisma.address.findUnique({ where: { id, userId } })
   }
 
   // 根据 ID 更新地址记录
-  update(id: number, data: UpdateAddressDto) {
+  update(id: number, userId: number, data: UpdateAddressDto) {
     return this.prisma.address.update({
-      where: { id },
+      where: { id, userId },
       data,
     })
   }
 
   // 根据 ID 删除地址记录
-  remove(id: number) {
-    return this.prisma.address.delete({ where: { id } })
+  remove(id: number, userId: number) {
+    return this.prisma.address.delete({ where: { id, userId } })
+  }
+
+  // 查询当前用户账号状态，避免后台账号与用户 ID 重合时越权。
+  findUser(id: number) {
+    return this.prisma.user.findUnique({ where: { id }, select: { status: true } })
   }
 }

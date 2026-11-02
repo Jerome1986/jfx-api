@@ -14,7 +14,6 @@ const safeUserSelect = {
   userNo: true,
   role: true,
   mobile: true,
-  openid: true,
   nickname: true,
   realName: true,
   gender: true,
@@ -32,6 +31,7 @@ const safeUserSelect = {
 
 const loginUserSelect = {
   ...safeUserSelect,
+  openid: true,
   employee: true,
 } satisfies Prisma.UserSelect
 
@@ -50,6 +50,11 @@ const availableCouponWhere = (): Prisma.UserCouponWhereInput => {
 export class UserRepository {
   // 注入 PrismaService，封装当前模块的数据库访问。
   constructor(private prisma: PrismaService) { }
+
+  // 核实后台管理员账号是否可用。
+  findAdmin(id: number) {
+    return this.prisma.admin.findUnique({ where: { id }, select: { status: true } })
+  }
 
   // 根据用户 ID 查询用户，支持传入事务客户端
   findById(id: number, tx?: Prisma.TransactionClient) {

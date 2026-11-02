@@ -77,7 +77,8 @@ export class UserService {
   }
 
   // 获取用户详情
-  async findOne(id: number) {
+  async findOne(id: number, actor: { userId: number; type: string }) {
+    await this.checkUserAccess(id, actor)
     const user = await this.userRepo.findOne(id)
     if (!user) {
       throw new NotFoundException('用户不存在')
@@ -87,7 +88,7 @@ export class UserService {
 
   // 更新用户信息
   async update(id: number, updateUserDto: UpdateUserDto) {
-    await this.findOne(id)
+    if (!await this.userRepo.findById(id)) throw new NotFoundException('用户不存在')
 
     if (updateUserDto.mobile) {
       const mobileOwner = await this.userRepo.findByMobile(updateUserDto.mobile)
@@ -105,7 +106,7 @@ export class UserService {
 
   // 逻辑删除用户
   async remove(id: number) {
-    await this.findOne(id)
+    if (!await this.userRepo.findById(id)) throw new NotFoundException('用户不存在')
     try {
       return await this.userRepo.disable(id)
     } catch {
@@ -114,7 +115,8 @@ export class UserService {
   }
 
   // 用户数据汇总
-  async summary(userId: number) {
+  async summary(userId: number, actor: { userId: number; type: string }) {
+    await this.checkUserAccess(userId, actor)
     const summary = await this.userRepo.summary(userId)
     if (!summary) {
       throw new NotFoundException('用户不存在')
@@ -141,6 +143,7 @@ export class UserService {
 
   // 获取用户积分明细
   async scoreFlow(queryDto: QueryScoreDto, user: UserJwtPayload) {
+    if (user.type !== 'user') throw new ForbiddenException('仅用户可查看自己的积分明细')
     const pageNum = Number(queryDto.pageNum) || 1
     const pageSize = Number(queryDto.pageSize) || 10
     const type = queryDto.type
@@ -161,6 +164,20 @@ export class UserService {
       pageSize,
       totalPage: Math.ceil(total / pageSize)
     }
+  }
+
+  // 用户仅可访问本人资料，后台管理员须校验账号状态。
+  private async checkUserAccess(userId: number, actor: { userId: number; type: string }) {
+    if (actor.type === 'admin') {
+      const admin = await this.userRepo.findAdmin(actor.userId)
+      if (!admin?.status) throw new ForbiddenException('管理员账号不存在或已禁用')
+      return
+    }
+    if (actor.type !== 'user' || actor.userId !== userId) {
+      throw new ForbiddenException('仅可访问本人资料')
+    }
+    const account = await this.userRepo.findById(actor.userId)
+    if (!account?.status) throw new ForbiddenException('用户账号不存在或已禁用')
   }
 
   // 测试登录接口

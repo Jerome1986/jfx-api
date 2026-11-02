@@ -19,6 +19,7 @@ import { UserJwtGuard } from 'src/common/auth/guards/user-jwt.guard';
 import { CurrentUser } from 'src/common/auth/decorators/current-user.decorator';
 import type { UserJwtPayload } from 'src/common/auth/interfaces/user-jwt-payload.interface';
 import { QueryScoreDto } from './dto/query-score-dto';
+import { AdminGuard } from '../common/auth/guards/admin.guard';
 
 // 测试登录接口参数类型
 export type TestRole = 'CUSTOMER' | 'EMPLOYEE'
@@ -36,6 +37,7 @@ export class UserController {
 
   // 用户列表
   @Get()
+  @UseGuards(UserJwtGuard, AdminGuard)
   findAll(@Query() query: QueryUserDto) {
     return this.userService.findAll(query)
   }
@@ -56,12 +58,14 @@ export class UserController {
 
   // 用户详情
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.userService.findOne(id)
+  @UseGuards(UserJwtGuard)
+  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: UserJwtPayload) {
+    return this.userService.findOne(id, user)
   }
 
   // 更新用户
   @Put(':id')
+  @UseGuards(UserJwtGuard, AdminGuard)
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateUserDto: UpdateUserDto,
@@ -71,14 +75,16 @@ export class UserController {
 
   // 逻辑删除用户
   @Delete(':id')
+  @UseGuards(UserJwtGuard, AdminGuard)
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.userService.remove(id)
   }
 
   // 用户数据汇总
   @Get('summary/:userId')
-  summary(@Param('userId', ParseIntPipe) userId: number) {
-    return this.userService.summary(userId)
+  @UseGuards(UserJwtGuard)
+  summary(@Param('userId', ParseIntPipe) userId: number, @CurrentUser() user: UserJwtPayload) {
+    return this.userService.summary(userId, user)
   }
 
   // 开发测试登录

@@ -1,7 +1,6 @@
 // 文件说明：地址创建请求的数据传输对象。
 import {
   IsBoolean,
-  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -12,11 +11,6 @@ import {
 } from 'class-validator'
 
 export class CreateAddressDto {
-  // 地址所属用户
-  @IsInt({ message: '用户ID必须是整数' })
-  @Min(1, { message: '用户ID必须大于0' })
-  userId: number
-
   // 联系人姓名
   @IsString({ message: '联系人姓名必须是字符串' })
   @IsNotEmpty({ message: '联系人姓名不能为空' })
